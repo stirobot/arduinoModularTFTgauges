@@ -1,0 +1,63 @@
+splash:autox.bmp 
+
+#colorscheme (will use color codes) -> use a 16 bit RGB color, such as those found at: http://www.rapidtables.com/web/color/RGB_Color.htm
+background:000000
+outline:FFFFFF
+fill:7AEF62
+textdefault:FF0000
+alert:F7FF00
+
+#pin config
+#sensorName:pin
+#legal sensor names:
+#	oiltemp
+#	oilpressure
+#	boostpressure
+#	temperature
+#	accelx
+#	accely
+#	obdoiltemp
+#	obdvolts
+#	obdltf
+#	obdstf
+#	obdcoolant
+#	obdafr
+#	obdiat
+#obd sensors don't have pins associated with them
+
+#page (aka mode) config
+#as many pages as you want...the sketch will flip through until EOF and start again
+#each sensor is configured per page
+#obd sensors don't have pin assignments after them
+#page types:
+#	twobar - two horizontal bar graphs with text
+#	onebar - one horizontal bar graph with text
+#	cross - cross chart for accelerometer
+#	round - 1 round gauge for one sensor
+
+page:1
+pagetype:twobar
+sensor1:obdoiltemp
+sensor2:obdcoolant
+sensor1text:Oil Temp
+sensor2text:Water
+sensor1max:300
+sensor2max:100
+sensor1alert:190
+sensor2alert:0
+
+page:2
+pagetype:round
+sensor1:oiltemp:9
+sensor1text:Oil T
+sensor1max:300
+sensor1alert:190
+
+#a page called logging will log the given parameters and display the first 4 as plain text
+page:3
+pagetype:logging
+obdoiltemp
+obdvolts
+obdcoolant
+obdafr
+obdiat
