@@ -1,11 +1,11 @@
 splash:autox.bmp 
 
-#colorscheme (will use color codes) -> use a 16 bit RGB color, such as those found at: http://www.rapidtables.com/web/color/RGB_Color.htm
-background:000000
-outline:FFFFFF
-fill:7AEF62
-textdefault:FF0000
-alert:F7FF00
+#colorscheme use these colors -> yellow, red, green, black, blue, white, magenta
+background:black
+outline:white
+fill:green
+textdefault:red
+alert:yellow
 
 #pin config
 #sensorName:pin
@@ -39,6 +39,8 @@ page:1
 pagetype:twobar
 sensor1:obdoiltemp
 sensor2:obdcoolant
+sensor1pin:0
+sensor2pin:0
 sensor1text:Oil Temp
 sensor2text:Water
 sensor1max:300
@@ -48,7 +50,8 @@ sensor2alert:0
 
 page:2
 pagetype:round
-sensor1:oiltemp:9
+sensor1:oiltemp
+sensor1pin:9
 sensor1text:Oil T
 sensor1max:300
 sensor1alert:190
