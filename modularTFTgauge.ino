@@ -26,17 +26,17 @@ you choose the peaks/warns/etc.
 Adafruit_ST7735 tft = Adafruit_ST7735(LCD_CS, LCD_DC, LCD_RST);
 
 File config;
-/*uint16_t background = 000000;
-uint16_t outline = FFFFFF;
-uint16_t fill = 7AEF62;
-uint16_t textdefault = FF0000;
-uint16_t alert = F7FF00;*/
+uint16_t background = ST7735_BLACK;
+uint16_t outline = ST7735_WHITE;
+uint16_t fill = ST7735_BLUE;
+uint16_t textdefault = ST7735_RED;
+uint16_t alert = ST7735_YELLOW;
 
 void setup() {
 	//read some basic settings from the SD card
 	Serial.begin(9600);
 	tft.initR(INITR_BLACKTAB);
- 	tft.fillScreen(tft.Color565(0,0,0));
+ 	tft.fillScreen(background);
 	tft.setRotation(1);
 	
 	Serial.print("SD card start\n");
@@ -45,25 +45,91 @@ void setup() {
     	  return;
   	}
   	Serial.println("SD OK");
+        config = SD.open("gauges");
   	//get name of splash from config file and display it
   	String splash = searchFile("splash");
         //Serial.println("splash"+ splash);
         unsigned int splashLen = splash.length()-1;
         char splashc[splashLen];
         splash.toCharArray(splashc, (splashLen));
+        config.close();
   	bmpDraw(splashc, 0, 0);
   	delay(100);
 
   	//read and assign color configs
+        background = textColorToColor(searchFile("background"));
+        outline = textColorToColor(searchFile("outline"));
+        fill = textColorToColor(searchFile("fill"));
+        textdefault = textColorToColor(searchFile("textdefault"));
+        alert = textColorToColor(searchFile("alert"));
         
 }
 
 void loop() {
+  String sensor1, sensor2, sensor3, sensor4;
+  String sensor1text, sensor2text, sensor3text, sensor4text;
+  unsigned int sensor1pin, sensor2pin, sensor3pin, sensor4pin; //regular sensors get pins...but will check if sensor gets pin of 0...marks obdII
+  unsigned int sensor1max, sensor2max, sensor3max, sensor4max;
+  unsigned int sensor1alert, sensor2alert, sensor3alert, sensor4alert;
+  //read config file for next page
+  if (searchFile("pagetype") == "twobar"){//2 sensors displayed in 2 bar charts
+    sensor1 = searchFile("sensor1");
+    sensor2 = searchFile("sensor2");
+    sensor1text = searchFile("sensor1text");
+    sensor2text = searchFile("sensor2text");
+    sensor1max = searchFile("sensor1max").toInt();
+    sensor2max = searchFile("sensor2max").toInt();
+    sensor1alert = searchFile("sensor1alert").toInt();
+    sensor2alert = searchFile("sensor2alert").toInt();
+    //loop to show the display and check for the button press
+  }
 
+  else if (searchFile("pagetype") == "onebar"){//1 sensor 1 bar chart...bigger fonts
+  }
+  
+  else if (searchFile("pagetype") == "logging"){//up to 4 sensors shown...log everything to file
+  }
+  
+  else if (searchFile("pagetype") == "round"){//1 sensor 1 round chart
+  }
+  
+  else if (searchFile("pagetype") == "accelerometer"){//cross bar type chart for accelerometer
+  }
+}
+
+int getSensorReading(String sensorName, int pinNumber){
+  //if the pin number is 0 it is obd II...look it up with the obd II lib
+  
+  //else call the appropriate Analog to digital conversion function on the appropirate pin
+  
+  return 0;
+}
+
+uint16_t textColorToColor(String color){
+  if (color == "red"){
+    return ST7735_RED;
+  }
+    else if (color == "magenta"){
+    return ST7735_MAGENTA;
+  }
+    else if (color == "blue"){
+    return ST7735_BLUE;
+  }
+    else if (color == "green"){
+    return ST7735_GREEN;
+  }
+   else if(color == "black"){
+    return ST7735_BLACK;
+  }
+   else  if (color == "white"){
+    return ST7735_WHITE;
+  }
+   else if (color == "yellow"){
+    return ST7735_YELLOW;
+  }
 }
 
 String searchFile(String searchFor){ //finds some substring + : and returns the value after the :
-        config = SD.open("gauges");
         if (!SD.exists("gauges")){
           Serial.println("config file not found try reformatting sd card");
           return("error");
@@ -82,7 +148,6 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
 			return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-2 ) );
 		}
 	}
-        config.close();
 }
 
 #define BUFFPIXEL 20
