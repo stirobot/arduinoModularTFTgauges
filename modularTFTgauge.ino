@@ -1,13 +1,13 @@
 /*modular gauges...
-a new start to the 1.8" tft based gauges
-most things are configured in the SD card config file, "gauges.cnf" 
-
-Modular
-3 types of gauge
-many types of sensor
-you choose the order
-you choose the peaks/warns/etc.
-*/
+ a new start to the 1.8" tft based gauges
+ most things are configured in the SD card config file, "gauges" 
+ 
+ Modular
+ 3 types of gauge
+ many types of sensor
+ you choose the order
+ you choose the peaks/warns/etc.
+ */
 
 //There is an issue where only one file can be opened at a time...
 //so maybe there is a logging page that you can hit the logging button...
@@ -16,6 +16,8 @@ you choose the peaks/warns/etc.
 #include <Adafruit_GFX.h>
 #include <SPI.h>
 #include <SD.h>
+#include <Wire.h>
+#include <OBD.h>
 
 #define SD_CS   4
 #define LCD_CS  10
@@ -32,38 +34,53 @@ uint16_t fill = ST7735_BLUE;
 uint16_t textdefault = ST7735_RED;
 uint16_t alert = ST7735_YELLOW;
 
-void setup() {
-	//read some basic settings from the SD card
-	Serial.begin(9600);
-	tft.initR(INITR_BLACKTAB);
- 	tft.fillScreen(background);
-	tft.setRotation(1);
-	
-	Serial.print("SD card start\n");
-  	if (!SD.begin(SD_CS)){
-    	  Serial.println("failed to initialize SD");
-    	  return;
-  	}
-  	Serial.println("SD OK");
-        config = SD.open("gauges");
-  	//get name of splash from config file and display it
-  	String splash = searchFile("splash");
-        //Serial.println("splash"+ splash);
-        unsigned int splashLen = splash.length()-1;
-        char splashc[splashLen];
-        splash.toCharArray(splashc, (splashLen));
-        config.close();
-  	bmpDraw(splashc, 0, 0);
-  	delay(100);
+COBD obd;
 
-  	//read and assign color configs
-        background = textColorToColor(searchFile("background"));
-        outline = textColorToColor(searchFile("outline"));
-        fill = textColorToColor(searchFile("fill"));
-        textdefault = textColorToColor(searchFile("textdefault"));
-        alert = textColorToColor(searchFile("alert"));
-        
+void setup() {
+  //read some basic settings from the SD card
+  Serial.begin(9600);
+  tft.initR(INITR_BLACKTAB);
+  tft.fillScreen(background);
+  tft.setRotation(1);
+
+  Serial.print("SD card start\n");
+  if (!SD.begin(SD_CS)){
+    Serial.println("failed to initialize SD");
+    return;
+  }
+  Serial.println("SD OK");
+  config = SD.open("gauges");
+  //get name of splash from config file and display it
+  String splash = searchFile("splash");
+  //Serial.println("splash"+ splash);
+  unsigned int splashLen = splash.length()-1;
+  char splashc[splashLen];
+  splash.toCharArray(splashc, (splashLen));
+  config.close();
+  bmpDraw(splashc, 0, 0);
+  
+  obd.begin();
+  while (!obd.init());
+
+  //read and assign color configs
+  config = SD.open("gauges");
+  background = textColorToColor(searchFile("background"));
+  outline = textColorToColor(searchFile("outline"));
+  fill = textColorToColor(searchFile("fill"));
+  textdefault = textColorToColor(searchFile("textdefault"));
+  alert = textColorToColor(searchFile("alert"));
+  config.close();
+
+  //run diagnostic for sensors?
+
+  //blank screen
+  tft.fillScreen(background);
 }
+
+//todo/don't forget:
+//-peaks and peak reset
+//-add OBD II custom PIDS
+//-add more PIDS
 
 void loop() {
   String sensor1, sensor2, sensor3, sensor4;
@@ -72,7 +89,8 @@ void loop() {
   unsigned int sensor1max, sensor2max, sensor3max, sensor4max;
   unsigned int sensor1alert, sensor2alert, sensor3alert, sensor4alert;
   //read config file for next page
-  if (searchFile("pagetype") == "twobar"){//2 sensors displayed in 2 bar charts
+  String pagetype = searchFile("pagetype");
+  if (pagetype == "twobar"){//2 sensors displayed in 2 bar charts
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor1text = searchFile("sensor1text");
@@ -84,72 +102,249 @@ void loop() {
     //loop to show the display and check for the button press
   }
 
-  else if (searchFile("pagetype") == "onebar"){//1 sensor 1 bar chart...bigger fonts
+  else if (pagetype == "onebar"){//1 sensor 1 bar chart...bigger fonts
+    sensor1 = searchFile("sensor1");
+    sensor1text = searchFile("sensor1text");
+    sensor1max = searchFile("sensor1max").toInt();
+    sensor1alert = searchFile("sensor1alert").toInt();
+    //loop to show the display and check for the button press
   }
-  
-  else if (searchFile("pagetype") == "logging"){//up to 4 sensors shown...log everything to file
+
+  else if (pagetype == "logging"){//up to 4 sensors shown...log everything to file
+    sensor1 = searchFile("sensor1");
+    sensor2 = searchFile("sensor2");
+    sensor3 = searchFile("sensor3");
+    sensor4 = searchFile("sensor4");    
   }
-  
-  else if (searchFile("pagetype") == "round"){//1 sensor 1 round chart
+
+  else if (pagetype == "round"){//1 sensor 1 round chart
+    sensor1 = searchFile("sensor1");
+    sensor1text = searchFile("sensor1text");
+    sensor1max = searchFile("sensor1max").toInt();
+    sensor1alert = searchFile("sensor1alert").toInt();
+    //loop to show the display and check for the button press
   }
-  
+
   else if (searchFile("pagetype") == "accelerometer"){//cross bar type chart for accelerometer
+    //special...just show the accelerometer and get the accelerometer data
   }
+}
+
+int getOBDIIvalue(String whichSensor){
+  int value;
+  if (whichSensor == "obdoiltemp"){
+    return obd.read(PID_ENGINE_OIL_TEMP, value); 
+  }
+  if (whichSensor =="obdvolts"){
+    return obd.read(PID_CONTROL_MODULE_VOLTAGE, value);
+  }
+  if (whichSensor == "obdcoolant"){
+    return obd.read(PID_COOLANT_TEMP, value);
+  }
+  return value;
 }
 
 int getSensorReading(String sensorName, int pinNumber){
   //if the pin number is 0 it is obd II...look it up with the obd II lib
-  
+  if (pinNumber == 0){
+    return(getOBDIIvalue(sensorName));  
+  }
   //else call the appropriate Analog to digital conversion function on the appropirate pin
-  
-  return 0;
+  else {
+    if (sensorName == "oiltemp"){
+      return lookup_oil_temp(pinNumber);
+    }
+    if (sensorName == "oilpressure"){
+      return lookup_oil_psi(pinNumber);
+    }
+    if (sensorName == "accelx"){
+      return getAccelerometerData(pinNumber);
+    }
+    if (sensorName == "accely"){
+      return getAccelerometerData(pinNumber);
+    }
+    if (sensorName == "boostpressure"){
+      return lookup_boost(pinNumber);
+    }
+    if (sensorName == "temperature"){
+      return lookup_temp(pinNumber);
+    }
+    
+  }
 }
 
 uint16_t textColorToColor(String color){
   if (color == "red"){
     return ST7735_RED;
   }
-    else if (color == "magenta"){
+  else if (color == "magenta"){
     return ST7735_MAGENTA;
   }
-    else if (color == "blue"){
+  else if (color == "blue"){
     return ST7735_BLUE;
   }
-    else if (color == "green"){
+  else if (color == "green"){
     return ST7735_GREEN;
   }
-   else if(color == "black"){
+  else if(color == "black"){
     return ST7735_BLACK;
   }
-   else  if (color == "white"){
+  else  if (color == "white"){
     return ST7735_WHITE;
   }
-   else if (color == "yellow"){
+  else if (color == "yellow"){
     return ST7735_YELLOW;
   }
 }
 
 String searchFile(String searchFor){ //finds some substring + : and returns the value after the :
-        if (!SD.exists("gauges")){
-          Serial.println("config file not found try reformatting sd card");
-          return("error");
-        }
-	//set pos to start of file
-	//loop and read a line and check
-	String line;
-        Serial.println(config.available());
-	while (config.available()){
-		line = config.readStringUntil('\n');
-                if (line.startsWith("#")){ //skip comments
-                }
-		else if (line.startsWith(searchFor)){
-                        config.close();
-			int colonPos = line.indexOf(":");
-			return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-2 ) );
-		}
-	}
+  if (!SD.exists("gauges")){
+    Serial.println("config file not found try reformatting sd card");
+    return("error");
+  }
+  //set pos to start of file
+  //loop and read a line and check
+  String line;
+  Serial.println(config.available());
+  while (config.available()){
+    line = config.readStringUntil('\n');
+    if (line.startsWith("#")){ //skip comments
+    }
+    else if (line.startsWith(searchFor)){
+      config.close();
+      int colonPos = line.indexOf(":");
+      return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-2 ) );
+    }
+  }
 }
 
+//sensor code
+int getAccelerometerData (int axis){
+  int zerog = 512;
+  int rc = analogRead(axis);
+  int top =( (zerog - rc) ) ; 
+  float frtrn = (((float)top/(float)154)*100);  //158Vint jumps are 1g for the ADXL213AE (original accel)
+  //154Vint jumps are 1g for the ADXL322 (updated one)
+  int rtrn = (int)frtrn;
+  return rtrn;
+}
+
+//oil temp
+long lookup_oil_temp(int oilTempPin){
+  long tval = analogRead(oilTempPin);
+  tval = tval * 1000; //added an extra 0
+  if (tval <= 11500){
+    return (9999); 
+  }
+  if (tval >= 68100){
+    return (0);
+  }
+  if ((tval <= 68000)&&(tval > 39600)){
+    return (long)(((tval-134266)*10)/(-473));
+  }
+  if ((tval <= 39600)&&(tval > 28200)){
+    return (long)(((tval-115600)*10)/(-380));
+  }
+  if ((tval <= 28200)&&(tval > 19700)){
+    return (long)(((tval-93366)*10)/(-283));
+  }  
+  if ((tval <= 19700)&&(tval > 11600)){
+    return (long)(((tval-54800)*10)/(-135));
+  }  
+}
+
+//oil pressure
+long lookup_oil_psi(int psiPin){
+  long psival = analogRead(psiPin);
+  if (psival > 722){
+    return (0);
+  }
+  if (psival < 257){
+    return(9999);
+  }
+  if ((psival <= 722)&&(psival > 619)) {
+    return 1747 - (psival*240)/100; 
+  } 
+  if ((psival <= 619)&&(psival > 520)) {
+    return 1802 - (psival*250)/100;
+  }
+  if ((psival <= 520)&&(psival > 411)) {
+    return 1694 - (psival*230)/100;     
+  }
+  if ((psival <= 411)&&(psival > 257)){
+    return 1418 - (psival*160)/100;
+  }
+} 
+
+long lookup_boost(int boostPin){
+  long boost = analogRead(boostPin);
+  //boost = ( (boost-106000) / 259000 );
+  // boost = ( (( boost * 398) / 1000) + 2); //2 is the y intercept
+  //398 changed to 378 for slope...because slope was too steep
+  boost = ( (( boost * 378) / 1000) - 4); ///10; //get rid of the divide by ten when adding decimals on display
+  return boost;
+}
+
+long lookup_temp(int tempPin){
+  long tval = analogRead(tempPin);
+  tval = tval * 100;
+  //tval = (long)(tval - (long)117588);
+  //return tval;
+  if (tval < 8900){
+   return (9999); 
+  }
+  if (tval > 96000){
+    return (0);
+  }
+  if ((tval <= 96000)&&(tval > 93221)){
+    return (((tval-101577)*10)/(-172));
+  }
+  if ((tval <= 93221)&&(tval > 89610)){
+    return (((tval-104201)*10)/(-226));
+  }
+  if ((tval <= 89610)&&(tval > 85125)){
+    return (((tval-107738)*10)/(-280));
+  }
+  if ((tval <= 85125)&&(tval > 79139)){
+    return (((tval-112264)*10)/(-335));
+  }
+  if ((tval <= 79139)&&(tval > 70799)){
+    return (((tval-117588)*10)/(-388));
+  }
+  if ((tval <= 70799)&&(tval > 62470)){
+    return (((tval-121441)*10)/(-421));
+  }
+  if ((tval <= 62470)&&(tval > 53230)){
+    return (((tval-122367)*10)/(-428));
+  }
+  if ((tval <= 53230)&&(tval > 43707)){
+    return (((tval-118651)*10)/(-405));
+  }
+  if ((tval <= 43707)&&(tval > 36471)){
+    return (((tval-111349)*10)/(-366));
+  }
+  if ((tval <= 36471)&&(tval > 30685)){
+    return (((tval-102232)*10)/(-321));
+  }
+  if ((tval <= 30685)&&(tval > 24800)){
+    return (((tval-9078)*10)/(-270));
+  }
+  if ((tval <= 24800)&&(tval > 20000)){
+    return (((tval-78575)*10)/(-220));
+  }
+  if ((tval <= 20000)&&(tval > 15851)){
+    return (((tval-66507)*10)/(-175));
+  }
+  if ((tval <= 15851)&&(tval > 12380)){
+    return (((tval-55300)*10)/(-137));
+  }
+  if ((tval <= 12380)&&(tval > 9085)){
+    return (((tval-41752)*10)/(-94));
+  }
+}
+
+
+//bmp drawing code from adafruit
 #define BUFFPIXEL 20
 
 void bmpDraw(char *filename, uint8_t x, uint8_t y) {
@@ -182,17 +377,21 @@ void bmpDraw(char *filename, uint8_t x, uint8_t y) {
 
   // Parse BMP header
   if(read16(bmpFile) == 0x4D42) { // BMP signature
-    Serial.print("File size: "); Serial.println(read32(bmpFile));
+    Serial.print("File size: "); 
+    Serial.println(read32(bmpFile));
     (void)read32(bmpFile); // Read & ignore creator bytes
     bmpImageoffset = read32(bmpFile); // Start of image data
-    Serial.print("Image Offset: "); Serial.println(bmpImageoffset, DEC);
+    Serial.print("Image Offset: "); 
+    Serial.println(bmpImageoffset, DEC);
     // Read DIB header
-    Serial.print("Header size: "); Serial.println(read32(bmpFile));
+    Serial.print("Header size: "); 
+    Serial.println(read32(bmpFile));
     bmpWidth  = read32(bmpFile);
     bmpHeight = read32(bmpFile);
     if(read16(bmpFile) == 1) { // # planes -- must be '1'
       bmpDepth = read16(bmpFile); // bits per pixel
-      Serial.print("Bit Depth: "); Serial.println(bmpDepth);
+      Serial.print("Bit Depth: "); 
+      Serial.println(bmpDepth);
       if((bmpDepth == 24) && (read32(bmpFile) == 0)) { // 0 = uncompressed
 
         goodBmp = true; // Supported BMP format -- proceed!
@@ -231,7 +430,7 @@ void bmpDraw(char *filename, uint8_t x, uint8_t y) {
           if(flip) // Bitmap is stored bottom-to-top order (normal BMP)
             pos = bmpImageoffset + (bmpHeight - 1 - row) * rowSize;
           else     // Bitmap is stored top-to-bottom
-            pos = bmpImageoffset + row * rowSize;
+          pos = bmpImageoffset + row * rowSize;
           if(bmpFile.position() != pos) { // Need seek?
             bmpFile.seek(pos);
             buffidx = sizeof(sdbuffer); // Force buffer reload
@@ -281,3 +480,5 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
+
