@@ -16,11 +16,23 @@
 #include <Adafruit_GFX.h>
 #include <SPI.h>
 #include <SD.h>
-#include <Wire.h>
-#include <OBD.h>
 
+ //pin reference for tft from;
+ /*http://webshed.org/wiki/18tftbreakout
+ eBay Board	 Adafruit Board	Arduino conections
+ VCC	 VCC	 5V
+ BKL	 LITE	 GND on eBay, 5V on Adafruit
+ RESET	 RESET	 8
+ RS	 D/C	 9
+ MISO	 MISO	 12 (50 for mega)
+ MOSI	 MOSI	 11 (51 for mega)
+ SCLK	 SCLK	 13 (52 for mega)
+ LCD CS	 TFT CS	 10 (53 for mega)
+ SD CS	 CARD CS 4	
+ GND	 GND	 GND
+*/
 #define SD_CS   4
-#define LCD_CS  10
+#define LCD_CS  53
 #define LCD_DC  9
 #define LCD_RST 8
 
@@ -34,7 +46,9 @@ uint16_t fill = ST7735_BLUE;
 uint16_t textdefault = ST7735_RED;
 uint16_t alert = ST7735_YELLOW;
 
-COBD obd;
+//This is a character buffer that will store the data from the serial port
+char rxData[20];
+char rxIndex=0;
 
 void setup() {
   //read some basic settings from the SD card
@@ -59,8 +73,7 @@ void setup() {
   config.close();
   bmpDraw(splashc, 0, 0);
   
-  obd.begin();
-  while (!obd.init());
+  Serial1.begin(9600); //spi for the display, serial for debug, serial1 for OBD II
 
   //read and assign color configs
   config = SD.open("gauges");
@@ -75,6 +88,10 @@ void setup() {
 
   //blank screen
   tft.fillScreen(background);
+  delay(2000);
+  Serial1.println("ATZ");
+  delay(2000);
+  Serial1.flush();
 }
 
 //todo/don't forget:
@@ -131,16 +148,20 @@ void loop() {
 }
 
 int getOBDIIvalue(String whichSensor){
-  int value;
-  if (whichSensor == "obdoiltemp"){
-    return obd.read(PID_ENGINE_OIL_TEMP, value); 
+  int value = 0;
+  if (whichSensor == "obdspeed"){
+    Serial1.println("010D"); //mode 1 0D PID
+    getResponse();  //command echoed
+    getResponse();  //value
+    value = strtol(&rxData[6],0,16); //convert the string to integer
   }
-  if (whichSensor =="obdvolts"){
-    return obd.read(PID_CONTROL_MODULE_VOLTAGE, value);
+  if (whichSensor == "obdrpms"){
+    Serial1.println("010C"); //mode 1 0C PID (rpm)
+    getResponse();  //command echoed
+    getResponse();  //value
+    value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
   }
-  if (whichSensor == "obdcoolant"){
-    return obd.read(PID_COOLANT_TEMP, value);
-  }
+  Serial1.flush();
   return value;
 }
 
@@ -172,6 +193,38 @@ int getSensorReading(String sensorName, int pinNumber){
     
   }
 }
+
+//the following function is from the sparkfun example code: https://github.com/sparkfun/OBD-II_UART/blob/master/Firmware/obdIIUartQuickstart.ino
+//The getResponse function collects incoming data from the UART into the rxData buffer
+// and only exits when a carriage return character is seen. Once the carriage return
+// string is detected, the rxData buffer is null terminated (so we can treat it as a string)
+// and the rxData index is reset to 0 so that the next string can be copied.
+void getResponse(void){
+  char inChar=0;
+  //Keep reading characters until we get a carriage return
+  while(inChar != '\r'){
+    //If a character comes in on the serial port, we need to act on it.
+    if(Serial.available() > 0){
+      //Start by checking if we've received the end of message character ('\r').
+      if(Serial.peek() == '\r'){
+        //Clear the Serial buffer
+        inChar=Serial.read();
+        //Put the end of string character on our data string
+        rxData[rxIndex]='\0';
+        //Reset the buffer index so that the next character goes back at the beginning of the string.
+        rxIndex=0;
+      }
+      //If we didn't get the end of message character, just add the new character to the string.
+      else{
+        //Get the new character from the Serial port.
+        inChar = Serial.read();
+        //Add the new character to the string, and increment the index variable.
+        rxData[rxIndex++]=inChar;
+      }
+    }
+  }
+}
+
 
 uint16_t textColorToColor(String color){
   if (color == "red"){
