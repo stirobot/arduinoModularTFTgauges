@@ -36,7 +36,7 @@
 #define LCD_DC  9
 #define LCD_RST 8
 
-//int chipSelect = 10; //for adafruit SD shields + tfts
+int chipSelect = 10; //for adafruit SD shields + tfts
 Adafruit_ST7735 tft = Adafruit_ST7735(LCD_CS, LCD_DC, LCD_RST);
 
 File config;
@@ -52,7 +52,7 @@ char rxIndex=0;
 
 void setup() {
   //read some basic settings from the SD card
-  Serial.begin(9600);
+  Serial.begin(9600); //debugging to serial console
   tft.initR(INITR_BLACKTAB);
   tft.fillScreen(background);
   tft.setRotation(1);
@@ -131,7 +131,30 @@ void loop() {
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor3 = searchFile("sensor3");
-    sensor4 = searchFile("sensor4");    
+    sensor4 = searchFile("sensor4");
+    sensor1pin = searchFile("sensor1pin").toInt();
+    sensor2pin = searchFile("sensor2pin").toInt();
+    sensor3pin = searchFile("sensor3pin").toInt();
+    sensor4pin = searchFile("sensor4pin").toInt();
+    //close the settings file
+    config.close();
+    //draw a blank logging page here:
+    tft.setTextColor(textdefault);
+    tft.setTextSize(2);
+    tft.setCursor(40, 5);
+    tft.println("Logging");
+    tft.setTextSize(1);
+    tft.setCursor(10, 40); tft.println(sensor1);
+    tft.setCursor(10, 60); tft.println(sensor2);
+    tft.setCursor(10, 80); tft.println(sensor3);
+    tft.setCursor(10, 100); tft.println(sensor4);
+    
+    //open a new logging file
+    
+    
+    while (true){ //change to button control
+      refreshLoggingPage(sensor1, sensor2, sensor3, sensor4, sensor1pin, sensor2pin, sensor3pin, sensor4pin);
+    }    
   }
 
   else if (pagetype == "round"){//1 sensor 1 round chart
@@ -147,8 +170,8 @@ void loop() {
   }
 }
 
-int getOBDIIvalue(String whichSensor){
-  int value = 0;
+long int getOBDIIvalue(String whichSensor){
+  long int value = 0;
   if (whichSensor == "obdspeed"){
     Serial1.println("010D"); //mode 1 0D PID
     getResponse();  //command echoed
@@ -161,6 +184,7 @@ int getOBDIIvalue(String whichSensor){
     getResponse();  //value
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
   }
+  
   Serial1.flush();
   return value;
 }
@@ -225,7 +249,39 @@ void getResponse(void){
   }
 }
 
+//logging page
+void refreshLoggingPage(String s1, String s2, String s3, String s4, int p1, int p2, int p3, int p4){
+  //get values
+  long v1 = getSensorReading(s1, p1);
+  long v2 = getSensorReading(s2, p2);
+  long v3 = getSensorReading(s3, p3);
+  long v4 = getSensorReading(s4, p4);
+  
+  //show logged stuff
+  tft.setTextColor(outline);
+  tft.setCursor(110,40); tft.println(v1);
+  tft.setCursor(110,60); tft.println(v2);
+  tft.setCursor(110,80); tft.println(v3);
+  tft.setCursor(110,100); tft.println(v4);
+  //log to sd card
+  return;
+}
 
+void refreshRoundPage(){
+ return;
+}
+
+void refreshTwoBarPage(){
+ return; 
+}
+
+void refreshOneBar(){
+  return;
+}
+
+void refreshAccel(){
+  return;
+}
 uint16_t textColorToColor(String color){
   if (color == "red"){
     return ST7735_RED;
