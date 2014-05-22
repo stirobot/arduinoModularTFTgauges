@@ -96,6 +96,7 @@ void setup() {
 
 //todo/don't forget:
 //-peaks and peak reset
+//  -might do this by doing peaks per page...page turns reset peaks (so then they'd be stored in local peak vars
 //-add OBD II custom PIDS
 //-add more PIDS
 
@@ -105,6 +106,7 @@ void loop() {
   unsigned int sensor1pin, sensor2pin, sensor3pin, sensor4pin; //regular sensors get pins...but will check if sensor gets pin of 0...marks obdII
   unsigned int sensor1max, sensor2max, sensor3max, sensor4max;
   unsigned int sensor1alert, sensor2alert, sensor3alert, sensor4alert;
+  String sensor1units, sensor2units;
   //read config file for next page
   String pagetype = searchFile("pagetype");
   if (pagetype == "twobar"){//2 sensors displayed in 2 bar charts
@@ -121,10 +123,40 @@ void loop() {
 
   else if (pagetype == "onebar"){//1 sensor 1 bar chart...bigger fonts
     sensor1 = searchFile("sensor1");
+    sensor1pin = searchFile("sensor1pin").toInt();
     sensor1text = searchFile("sensor1text");
     sensor1max = searchFile("sensor1max").toInt();
     sensor1alert = searchFile("sensor1alert").toInt();
+    sensor1units = searchFile("sensor1units");
+    //draw template stuff
+    tft.setCursor(0,5);
+    tft.setTextColor(textdefault);
+    tft.println(sensor1text);
+    tft.setCursor(50,100);
+    tft.println(sensor1units);
+    long val;
+    long valOld = 0;
+    uint16_t barColor;
     //loop to show the display and check for the button press
+    while (true){ //change to button control
+      //get value
+      val = getSensorReading(sensor1, sensor1pin);
+      //write value
+      tft.setCursor(0,100);
+      tft.println(val);
+      //pick the bar color
+      if (val >= sensor1max){barColor = alert;}
+      else {barColor = fill;}
+      //draw bar
+      if (val > valOld){//if the bar is longer...add
+        tft.fillRect( ( ( (float)160/sensor1max)*valOld), 40, ( ((float)160/sensor1max)*(val-valOld) ), 40, fill  );
+      }
+      if (val < valOld){//if the bar is shorter...erase
+        tft.fillRect( ( (float)160/sensor1max*val), 40, ( (float)160/sensor1max*valOld), 40, background );
+      }
+      valOld = val;
+    } 
+    
   }
 
   else if (pagetype == "logging"){//up to 4 sensors shown...log everything to file
@@ -250,6 +282,9 @@ void getResponse(void){
 }
 
 //logging page
+//TODO:
+//add sd card writting
+//add wait before logging (10 second wait on page before logging starts)
 void refreshLoggingPage(String s1, String s2, String s3, String s4, int p1, int p2, int p3, int p4){
   //get values
   long v1 = getSensorReading(s1, p1);
@@ -267,21 +302,6 @@ void refreshLoggingPage(String s1, String s2, String s3, String s4, int p1, int 
   return;
 }
 
-void refreshRoundPage(){
- return;
-}
-
-void refreshTwoBarPage(){
- return; 
-}
-
-void refreshOneBar(){
-  return;
-}
-
-void refreshAccel(){
-  return;
-}
 uint16_t textColorToColor(String color){
   if (color == "red"){
     return ST7735_RED;

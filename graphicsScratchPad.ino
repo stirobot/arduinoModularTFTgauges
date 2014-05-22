@@ -64,6 +64,17 @@ void loop(){
   tft.setCursor(110, 100);
   tft.println("2503");
   */
+  
+  //single bar layout
+  tft.setCursor(0, 5);
+  tft.setTextColor(outline);
+  tft.setTextSize(2);
+  tft.println("Oil Temp");
+  tft.fillRect(0, 40, 68, 40, fill);
+  tft.setCursor(0, 100);
+  tft.println("210");
+  tft.setCursor(50,100);
+  tft.println("F");  
 }
 
 
