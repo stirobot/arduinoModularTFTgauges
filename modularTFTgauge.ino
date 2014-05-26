@@ -120,7 +120,47 @@ void loop() {
     sensor2alert = searchFile("sensor2alert").toInt();
     //loop to show the display and check for the button press
   }
-
+  
+  else if (pagetype == "round"){
+    sensor1 = searchFile("sensor1");
+    sensor1text = searchFile("sensor1text");
+    sensor1max = searchFile("sensor1max").toInt();
+    sensor1alert = searchFile("sensor1alert").toInt();
+    
+    tft.setTextSize(2);
+    tft.setTextColor(textdefault);
+    tft.setCursor(0, 2);
+    tft.println(sensor1text);
+    tft.drawCircle(80, 70, 50, textdefault);
+    tft.drawCircle(80, 70, 49, textdefault);
+    long val;
+    long valOld = 0;
+    uint16_t barColor;
+    int angle = 0;
+    float rad = 0;
+    while (true){//change to button control
+      val = getSensorReading(sensor1, sensor1pin);
+      tft.setCursor(65,60);
+      tft.println(val);
+      if (val >= sensor1max){barColor = alert;}
+      else {barColor = fill;}
+      if (val > valOld){//if the bar is longer...add
+        //270/sensor1max gives scaling for a 270 degree gauge
+        for(angle = ((float)valOld*270/sensor1max); angle <= (((float)val*270/sensor1max)); angle+=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
+          rad = angle * PI / 180;
+          tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,barColor);
+        }
+      }
+      if (val < valOld){//if the bar is shorter...erase
+        for(angle = (((float)val*270/sensor1max)); angle >= ((float)valOld*270/sensor1max); angle-=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
+          rad = angle * PI / 180;
+          tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,background);
+        }
+      }
+      
+    }
+  }
+  
   else if (pagetype == "onebar"){//1 sensor 1 bar chart...bigger fonts
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();
@@ -149,7 +189,7 @@ void loop() {
       else {barColor = fill;}
       //draw bar
       if (val > valOld){//if the bar is longer...add
-        tft.fillRect( ( ( (float)160/sensor1max)*valOld), 40, ( ((float)160/sensor1max)*(val-valOld) ), 40, fill  );
+        tft.fillRect( ( ( (float)160/sensor1max)*valOld), 40, ( ((float)160/sensor1max)*(val-valOld) ), 40, barColor  );
       }
       if (val < valOld){//if the bar is shorter...erase
         tft.fillRect( ( (float)160/sensor1max*val), 40, ( (float)160/sensor1max*valOld), 40, background );

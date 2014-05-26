@@ -2,6 +2,7 @@
 #include <Adafruit_GFX.h>
 #include <SPI.h>
 #include <SD.h>
+#include <math.h>
 
 
 //pin reference for tft from;
@@ -65,6 +66,7 @@ void loop(){
   tft.println("2503");
   */
   
+  /*
   //single bar layout
   tft.setCursor(0, 5);
   tft.setTextColor(outline);
@@ -74,7 +76,44 @@ void loop(){
   tft.setCursor(0, 100);
   tft.println("210");
   tft.setCursor(50,100);
-  tft.println("F");  
+  tft.println("F");
+  */
+
+  //double bar
+  
+  //round
+  /*tft.setTextSize(2);
+  tft.setTextColor(textdefault);
+  tft.setCursor(0, 2);
+  tft.println("Oil Temp");
+  tft.drawCircle(80, 70, 50, textdefault);
+  tft.drawCircle(80, 70, 49, textdefault);
+  tft.setCursor(65,60);
+  tft.println("210");
+  
+  tft.fillCircle(80,113,5,fill); //no calc for the zero position
+  float rad = 0.0;
+  for (int i = 0; i <= 270; i+=5){
+      rad = i * PI / 180;
+      //works for lower left quadrant
+      //upper left is 80-sin(i)*43, 70-cos(i)*43
+      //upper right is 80+sin(i)*43, 70+cos(i)*43
+      //need special cases for 0, 90, 180 deg (because sin(0)=0
+      tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5 , fill );
+  } 
+ */ 
+  delay(10000);
+  
+  //accel cross
+  
+}
+
+int sine(int angle){
+  
+}
+
+int cosine(int angle){
+  
 }
 
 
