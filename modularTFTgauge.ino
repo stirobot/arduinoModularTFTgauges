@@ -97,8 +97,10 @@ void setup() {
 //todo/don't forget:
 //-peaks and peak reset
 //  -might do this by doing peaks per page...page turns reset peaks (so then they'd be stored in local peak vars
-//-add OBD II custom PIDS
-//-add more PIDS
+//-dual bar chart
+//-test code
+//-button code
+//-test all meters code
 
 void loop() {
   String sensor1, sensor2, sensor3, sensor4;
@@ -244,19 +246,84 @@ void loop() {
 
 long int getOBDIIvalue(String whichSensor){
   long int value = 0;
-  if (whichSensor == "obdspeed"){
+  if (whichSensor == "obdspeedkph"){
     Serial1.println("010D"); //mode 1 0D PID
     getResponse();  //command echoed
     getResponse();  //value
-    value = strtol(&rxData[6],0,16); //convert the string to integer
+    value = strtol(&rxData[6],0,16) ; //convert the string to integer
   }
+  if (whichSensor == "obdspeedmph"){
+    Serial1.println("010D"); //mode 1 0D PID
+    getResponse();  //command echoed
+    getResponse();  //value
+    value = strtol(&rxData[6],0,16)/1.6 ; //convert the string to integer
+  }  
   if (whichSensor == "obdrpms"){
     Serial1.println("010C"); //mode 1 0C PID (rpm)
     getResponse();  //command echoed
     getResponse();  //value
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
   }
-  
+  if (whichSensor == "obdcoolant"){
+    Serial1.println("O1O5");
+    getResponse();
+    getResponse();
+    value = (strtol(&rxData[6],0,16))-4; //aka A-40
+  }
+  if (whichSensor == "obdboost"){
+    Serial1.println("0265"); //intake manifold abs pressure
+    getResponse();
+    getResponse();
+    value = (strtol(&rxData[6],0,16)); //aka A
+  }  
+  if (whichSensor == "obdiat"){
+    Serial1.println("O1OF");
+    getResponse();
+    getResponse();
+    value = (strtol(&rxData[6],0,16)); //aka A-40
+  }
+    if (whichSensor == "obdcoolant"){
+    Serial1.println("O1O5");
+    getResponse();
+    getResponse();
+    value = (strtol(&rxData[6],0,16))-4; //aka A-40
+  }
+  if (whichSensor == "obdmaf"){
+    Serial1.println("0110");
+    getResponse();
+    getResponse();
+    value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/100; //aka ((A*256)+B)/100
+  }
+  if (whichSensor == "obdvolts"){
+    Serial1.println("0142");
+    getResponse();
+    getResponse();
+    value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
+  }
+  if (whichSensor == "obdoiltempC"){
+    Serial1.println("015C");
+    getResponse();
+    getResponse();
+    value = strtol(&rxData[6],0,16)-40; //aka (A-40)
+  }
+  if (whichSensor == "obdoiltempc"){
+    Serial1.println("015C");
+    getResponse();
+    getResponse();
+    value = (strtol(&rxData[6],0,16)-40)*1.8; //aka (A-40)
+  }
+  if (whichSensor == "obdbrzoiltempc"){
+    Serial1.println("0110");
+    getResponse();
+    getResponse();
+    value = ( strtol(&rxData[93],0,16) ) - 40; //29th byte - 40 (?)
+  }
+  if (whichSensor == "obdbrzoiltempf"){
+    Serial1.println("0110");
+    getResponse();
+    getResponse();
+    value = ( (strtol(&rxData[93],0,16) ) - 40) * 1.8; //29th byte - 40 (?)
+  }
   Serial1.flush();
   return value;
 }
@@ -268,6 +335,9 @@ int getSensorReading(String sensorName, int pinNumber){
   }
   //else call the appropriate Analog to digital conversion function on the appropirate pin
   else {
+    if (sensorName == "fake"){
+      return lookup_fake_random_sensor(pinNumber);
+    }
     if (sensorName == "oiltemp"){
       return lookup_oil_temp(pinNumber);
     }
@@ -385,6 +455,11 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
       return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-2 ) );
     }
   }
+}
+
+//fake sensor for testing
+int lookup_fake_random_sensor(int max){
+ return( random(0,max));
 }
 
 //sensor code
