@@ -39,6 +39,8 @@
 int chipSelect = 10; //for adafruit SD shields + tfts
 Adafruit_ST7735 tft = Adafruit_ST7735(LCD_CS, LCD_DC, LCD_RST);
 
+int buttonApin = 31;
+
 File config;
 uint16_t background = ST7735_BLACK;
 uint16_t outline = ST7735_WHITE;
@@ -47,7 +49,7 @@ uint16_t textdefault = ST7735_RED;
 uint16_t alert = ST7735_YELLOW;
 
 //This is a character buffer that will store the data from the serial port
-char rxData[20];
+char rxData[30];
 char rxIndex=0;
 
 void setup() {
@@ -74,7 +76,7 @@ void setup() {
   bmpDraw(splashc, 0, 0);
   
   Serial1.begin(9600); //spi for the display, serial for debug, serial1 for OBD II
-
+  
   //read and assign color configs
   config = SD.open("gauges");
   background = textColorToColor(searchFile("background"));
@@ -82,24 +84,25 @@ void setup() {
   fill = textColorToColor(searchFile("fill"));
   textdefault = textColorToColor(searchFile("textdefault"));
   alert = textColorToColor(searchFile("alert"));
-  config.close();
+  
 
   //run diagnostic for sensors?
 
   //blank screen
-  tft.fillScreen(background);
   delay(2000);
   Serial1.println("ATZ");
   delay(2000);
   Serial1.flush();
+  pinMode(buttonApin, INPUT);
+  Serial.println("end of setup");
+  tft.fillScreen(background);
 }
 
 //todo/don't forget:
 //-peaks and peak reset
-//  -might do this by doing peaks per page...page turns reset peaks (so then they'd be stored in local peak vars
+//  -might do this by doing peaks per page...page turns reset peaks (so then they'd be stored in local peak vars)
 //-dual bar chart
-//-test code
-//-button code
+//-button code debugging
 //-test all meters code
 
 void loop() {
@@ -111,7 +114,8 @@ void loop() {
   String sensor1units, sensor2units;
   //read config file for next page
   String pagetype = searchFile("pagetype");
-  if (pagetype == "twobar"){//2 sensors displayed in 2 bar charts
+  Serial.println(pagetype);
+  if (pagetype.indexOf("twobar") >= 0){//2 sensors displayed in 2 bar charts
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor1text = searchFile("sensor1text");
@@ -120,15 +124,19 @@ void loop() {
     sensor2max = searchFile("sensor2max").toInt();
     sensor1alert = searchFile("sensor1alert").toInt();
     sensor2alert = searchFile("sensor2alert").toInt();
+    tft.fillScreen(background);
     //loop to show the display and check for the button press
+    while (digitalRead(buttonApin == LOW)){
+      //do dual bar stuff
+    }
   }
-  
-  else if (pagetype == "round"){
+
+  else if (pagetype.indexOf("round") >= 0){
     sensor1 = searchFile("sensor1");
     sensor1text = searchFile("sensor1text");
     sensor1max = searchFile("sensor1max").toInt();
     sensor1alert = searchFile("sensor1alert").toInt();
-    
+    tft.fillScreen(background);
     tft.setTextSize(2);
     tft.setTextColor(textdefault);
     tft.setCursor(0, 2);
@@ -140,7 +148,7 @@ void loop() {
     uint16_t barColor;
     int angle = 0;
     float rad = 0;
-    while (true){//change to button control
+    while  (digitalRead(buttonApin == LOW)){
       val = getSensorReading(sensor1, sensor1pin);
       tft.setCursor(65,60);
       tft.println(val);
@@ -163,7 +171,8 @@ void loop() {
     }
   }
   
-  else if (pagetype == "onebar"){//1 sensor 1 bar chart...bigger fonts
+  else if (pagetype.indexOf("onebar") >=0){//1 sensor 1 bar chart...bigger fonts
+    Serial.println("onebar");
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();
     sensor1text = searchFile("sensor1text");
@@ -171,6 +180,7 @@ void loop() {
     sensor1alert = searchFile("sensor1alert").toInt();
     sensor1units = searchFile("sensor1units");
     //draw template stuff
+    tft.fillScreen(background);
     tft.setCursor(0,5);
     tft.setTextColor(textdefault);
     tft.println(sensor1text);
@@ -180,7 +190,7 @@ void loop() {
     long valOld = 0;
     uint16_t barColor;
     //loop to show the display and check for the button press
-    while (true){ //change to button control
+    while  (digitalRead(buttonApin == LOW)){ 
       //get value
       val = getSensorReading(sensor1, sensor1pin);
       //write value
@@ -201,7 +211,7 @@ void loop() {
     
   }
 
-  else if (pagetype == "logging"){//up to 4 sensors shown...log everything to file
+  else if (pagetype.indexOf("logging") >= 0){//up to 4 sensors shown...log everything to file
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor3 = searchFile("sensor3");
@@ -213,6 +223,7 @@ void loop() {
     //close the settings file
     config.close();
     //draw a blank logging page here:
+    tft.fillScreen(background);
     tft.setTextColor(textdefault);
     tft.setTextSize(2);
     tft.setCursor(40, 5);
@@ -226,21 +237,17 @@ void loop() {
     //open a new logging file
     
     
-    while (true){ //change to button control
+    while  (digitalRead(buttonApin == LOW)){ 
       refreshLoggingPage(sensor1, sensor2, sensor3, sensor4, sensor1pin, sensor2pin, sensor3pin, sensor4pin);
     }    
   }
 
-  else if (pagetype == "round"){//1 sensor 1 round chart
-    sensor1 = searchFile("sensor1");
-    sensor1text = searchFile("sensor1text");
-    sensor1max = searchFile("sensor1max").toInt();
-    sensor1alert = searchFile("sensor1alert").toInt();
-    //loop to show the display and check for the button press
-  }
-
-  else if (searchFile("pagetype") == "accelerometer"){//cross bar type chart for accelerometer
+  else if (pagetype.indexOf("accelerometer") >= 0){//cross bar type chart for accelerometer
     //special...just show the accelerometer and get the accelerometer data
+    tft.fillScreen(background);
+     while (digitalRead(buttonApin == LOW)){
+       //display and refresh the page here
+     }
   }
 }
 
@@ -413,26 +420,30 @@ void refreshLoggingPage(String s1, String s2, String s3, String s4, int p1, int 
 }
 
 uint16_t textColorToColor(String color){
-  if (color == "red"){
+  Serial.println(color);
+  if (color.indexOf("red") >= 0){
     return ST7735_RED;
   }
-  else if (color == "magenta"){
+  else if (color.indexOf("magenta") >= 0){
     return ST7735_MAGENTA;
   }
-  else if (color == "blue"){
+  else if (color.indexOf("blue") >= 0){
     return ST7735_BLUE;
   }
-  else if (color == "green"){
+  else if (color.indexOf("green") >= 0){
     return ST7735_GREEN;
   }
-  else if(color == "black"){
+  else if(color.indexOf("black") >= 0){
     return ST7735_BLACK;
   }
-  else  if (color == "white"){
+  else  if (color.indexOf("white") >= 0){
     return ST7735_WHITE;
   }
-  else if (color == "yellow"){
+  else if (color.indexOf("yellow") >=0){
     return ST7735_YELLOW;
+  }
+  else {
+    return ST7735_WHITE;
   }
 }
 
@@ -450,7 +461,6 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
     if (line.startsWith("#")){ //skip comments
     }
     else if (line.startsWith(searchFor)){
-      config.close();
       int colonPos = line.indexOf(":");
       return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-2 ) );
     }

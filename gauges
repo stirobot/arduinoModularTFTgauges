@@ -10,16 +10,16 @@ textdefault:red
 alert:yellow
 
 #monitorlist - a list of sensors to monitor constantly and switch to if there are issues
-monitorlist:3
-sensor1:oiltemp
-sensor1pin:10
-sensor1alert:300
-sensor1:oiltemp
-sensor1pin:10
-sensor1alert:300
-sensor1:oiltemp
-sensor1pin:10
-sensor1alert:300
+#monitorlist:3
+#sensor1:oiltemp
+#sensor1pin:10
+#sensor1alert:300
+#sensor1:oiltemp
+#sensor1pin:10
+#sensor1alert:300
+#sensor1:oiltemp
+#sensor1pin:10
+#sensor1alert:300
 
 #pin config
 #sensorName:pin
@@ -56,25 +56,34 @@ sensor1alert:300
 #sensor*text can be about 8 chars long on the one sensor pages...a little longer on the others (due to font size)
 #There is a "fake" sensor...give it a pin number that is the max value you want...allows for easy testing.
 
+#page:1
+#pagetype:twobar
+#sensor1:fake
+#sensor2:fake
+#sensor1pin:300
+#sensor2pin:100
+#sensor1text:Oil Temp
+#sensor2text:Water
+#sensor1max:300
+#sensor2max:100
+#sensor1alert:190
+#sensor2alert:0
+#sensor1units:F
+#sensor2units:F
+
 page:1
-pagetype:twobar
-sensor1:obdoiltemp
-sensor2:obdcoolant
-sensor1pin:0
-sensor2pin:0
+pagetype:onebar
+sensor1:fake
+sensor1pin:300
 sensor1text:Oil Temp
-sensor2text:Water
 sensor1max:300
-sensor2max:100
-sensor1alert:190
-sensor2alert:0
+sensor1alert:250
 sensor1units:F
-sensor2units:F
 
 page:2
 pagetype:round
-sensor1:oiltemp
-sensor1pin:9
+sensor1:fake
+sensor1pin:300
 sensor1text:Oil T
 sensor1max:300
 sensor1alert:190
@@ -85,11 +94,11 @@ sensor1units:F
 #pages after logging will be skipped
 page:3
 pagetype:logging
-sensor1:obdoiltemp
-sensor2:obdvolts
-sensor3:bdcoolant
-sensor4:obdafr
-sensor1pin:0
-sensor2pin:0
-sensor3pin:0
-sensor4pin:0
+sensor1:fake
+sensor2:fake
+sensor3:fake
+sensor4:fake
+sensor1pin:300
+sensor2pin:200
+sensor3pin:250
+sensor4pin:100
