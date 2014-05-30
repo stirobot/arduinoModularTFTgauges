@@ -470,7 +470,7 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
     }
     else if (line.startsWith(searchFor)){
       int colonPos = line.indexOf(":");
-      return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-2 ) );
+      return( line.substring( line.indexOf(":")+1, line.indexOf("\n")-3 ) );
     }
   }
 }
