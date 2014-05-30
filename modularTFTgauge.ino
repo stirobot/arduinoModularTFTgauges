@@ -40,6 +40,7 @@ int chipSelect = 10; //for adafruit SD shields + tfts
 Adafruit_ST7735 tft = Adafruit_ST7735(LCD_CS, LCD_DC, LCD_RST);
 
 int buttonApin = 31;
+int fakeSensor=0;
 
 File config;
 uint16_t background = ST7735_BLACK;
@@ -191,16 +192,23 @@ void loop() {
     uint16_t barColor;
     //loop to show the display and check for the button press
     while  (digitalRead(buttonApin == LOW)){ 
+      Serial.println("button low...getting reading");
       //get value
       val = getSensorReading(sensor1, sensor1pin);
+      Serial.println("reading is:");
+      Serial.println(val);
       //write value
+      tft.setCursor(0,100); //blank old value first
+      tft.setTextColor(background);
+      tft.println(valOld);
       tft.setCursor(0,100);
+      tft.setTextColor(textdefault);
       tft.println(val);
       //pick the bar color
-      if (val >= sensor1max){barColor = alert;}
+      if (val >= sensor1alert){barColor = alert;}
       else {barColor = fill;}
       //draw bar
-      if (val > valOld){//if the bar is longer...add
+      if (val >= valOld){//if the bar is longer...add
         tft.fillRect( ( ( (float)160/sensor1max)*valOld), 40, ( ((float)160/sensor1max)*(val-valOld) ), 40, barColor  );
       }
       if (val < valOld){//if the bar is shorter...erase
@@ -253,79 +261,79 @@ void loop() {
 
 long int getOBDIIvalue(String whichSensor){
   long int value = 0;
-  if (whichSensor == "obdspeedkph"){
+  if (whichSensor.indexOf("obdspeedkph") >= 0){
     Serial1.println("010D"); //mode 1 0D PID
     getResponse();  //command echoed
     getResponse();  //value
     value = strtol(&rxData[6],0,16) ; //convert the string to integer
   }
-  if (whichSensor == "obdspeedmph"){
+  if (whichSensor.indexOf("obdspeedmph") >= 0){
     Serial1.println("010D"); //mode 1 0D PID
     getResponse();  //command echoed
     getResponse();  //value
     value = strtol(&rxData[6],0,16)/1.6 ; //convert the string to integer
   }  
-  if (whichSensor == "obdrpms"){
+  if (whichSensor.indexOf("obdrpms") >= 0){
     Serial1.println("010C"); //mode 1 0C PID (rpm)
     getResponse();  //command echoed
     getResponse();  //value
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
   }
-  if (whichSensor == "obdcoolant"){
+  if (whichSensor.indexOf("obdcoolant") >=0){
     Serial1.println("O1O5");
     getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16))-4; //aka A-40
   }
-  if (whichSensor == "obdboost"){
+  if (whichSensor.indexOf("obdboost") >= 0){
     Serial1.println("0265"); //intake manifold abs pressure
     getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A
   }  
-  if (whichSensor == "obdiat"){
+  if (whichSensor.indexOf("obdiat") >= 0){
     Serial1.println("O1OF");
     getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A-40
   }
-    if (whichSensor == "obdcoolant"){
+    if (whichSensor.indexOf("obdcoolant") >=0 ){
     Serial1.println("O1O5");
     getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16))-4; //aka A-40
   }
-  if (whichSensor == "obdmaf"){
+  if (whichSensor.indexOf("obdmaf") >= 0){
     Serial1.println("0110");
     getResponse();
     getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/100; //aka ((A*256)+B)/100
   }
-  if (whichSensor == "obdvolts"){
+  if (whichSensor.indexOf("obdvolts") >= 0){
     Serial1.println("0142");
     getResponse();
     getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
   }
-  if (whichSensor == "obdoiltempC"){
+  if (whichSensor.indexOf("obdoiltempC") >= 0){
     Serial1.println("015C");
     getResponse();
     getResponse();
     value = strtol(&rxData[6],0,16)-40; //aka (A-40)
   }
-  if (whichSensor == "obdoiltempc"){
+  if (whichSensor.indexOf("obdoiltempc") >= 0){
     Serial1.println("015C");
     getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16)-40)*1.8; //aka (A-40)
   }
-  if (whichSensor == "obdbrzoiltempc"){
+  if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
     Serial1.println("0110");
     getResponse();
     getResponse();
     value = ( strtol(&rxData[93],0,16) ) - 40; //29th byte - 40 (?)
   }
-  if (whichSensor == "obdbrzoiltempf"){
+  if (whichSensor.indexOf("obdbrzoiltempf") >= 0){
     Serial1.println("0110");
     getResponse();
     getResponse();
@@ -342,25 +350,25 @@ int getSensorReading(String sensorName, int pinNumber){
   }
   //else call the appropriate Analog to digital conversion function on the appropirate pin
   else {
-    if (sensorName == "fake"){
+    if (sensorName.indexOf("fake") >= 0){
       return lookup_fake_random_sensor(pinNumber);
     }
-    if (sensorName == "oiltemp"){
+    if (sensorName.indexOf("oiltemp") >= 0){
       return lookup_oil_temp(pinNumber);
     }
-    if (sensorName == "oilpressure"){
+    if (sensorName.indexOf("oilpressure") >= 0){
       return lookup_oil_psi(pinNumber);
     }
-    if (sensorName == "accelx"){
+    if (sensorName.indexOf("accelx") >= 0){
       return getAccelerometerData(pinNumber);
     }
-    if (sensorName == "accely"){
+    if (sensorName.indexOf("accely") >= 0){
       return getAccelerometerData(pinNumber);
     }
-    if (sensorName == "boostpressure"){
+    if (sensorName.indexOf("boostpressure") >= 0){
       return lookup_boost(pinNumber);
     }
-    if (sensorName == "temperature"){
+    if (sensorName.indexOf("temperature") >= 0){
       return lookup_temp(pinNumber);
     }
     
@@ -455,7 +463,7 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
   //set pos to start of file
   //loop and read a line and check
   String line;
-  Serial.println(config.available());
+  //Serial.println(config.available());
   while (config.available()){
     line = config.readStringUntil('\n');
     if (line.startsWith("#")){ //skip comments
@@ -469,7 +477,16 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
 
 //fake sensor for testing
 int lookup_fake_random_sensor(int max){
- return( random(0,max));
+ //randomSeed(analogRead(0));
+ //return(0 + random() % (max - 0) );
+ //for increment
+ if (fakeSensor >= max){
+   fakeSensor = 0;
+ }
+ else {fakeSensor+=5;}
+ Serial.println("lookup_fake_random_sensor");
+ Serial.println(fakeSensor);
+ return fakeSensor;
 }
 
 //sensor code
