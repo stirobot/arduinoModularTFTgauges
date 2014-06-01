@@ -134,6 +134,7 @@ void loop() {
 
   else if (pagetype.indexOf("round") >= 0){
     sensor1 = searchFile("sensor1");
+    sensor1pin = searchFile("sensor1pin").toInt();
     sensor1text = searchFile("sensor1text");
     sensor1max = searchFile("sensor1max").toInt();
     sensor1alert = searchFile("sensor1alert").toInt();
@@ -152,6 +153,10 @@ void loop() {
     while  (digitalRead(buttonApin == LOW)){
       val = getSensorReading(sensor1, sensor1pin);
       tft.setCursor(65,60);
+      tft.setTextColor(background);
+      tft.println(valOld);
+      tft.setTextColor(textdefault);
+      tft.setCursor(65,60);
       tft.println(val);
       if (val >= sensor1max){barColor = alert;}
       else {barColor = fill;}
@@ -163,12 +168,12 @@ void loop() {
         }
       }
       if (val < valOld){//if the bar is shorter...erase
-        for(angle = (((float)val*270/sensor1max)); angle >= ((float)valOld*270/sensor1max); angle-=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
+        for(angle = (((float)valOld*270/sensor1max)); angle >= ((float)val*270/sensor1max); angle-=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
           rad = angle * PI / 180;
           tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,background);
         }
       }
-      
+      valOld = val;
     }
   }
   
@@ -209,7 +214,7 @@ void loop() {
       else {barColor = fill;}
       //draw bar
       if (val >= valOld){//if the bar is longer...add
-        tft.fillRect( ( ( (float)160/sensor1max)*valOld), 40, ( ((float)160/sensor1max)*(val-valOld) ), 40, barColor  );
+        tft.fillRect( ( ( (float)160/sensor1max)*valOld - 1), 40, ( ((float)160/sensor1max)*(val-valOld) + 1), 40, barColor  );
       }
       if (val < valOld){//if the bar is shorter...erase
         tft.fillRect( ( (float)160/sensor1max*val), 40, ( (float)160/sensor1max*valOld), 40, background );
@@ -218,7 +223,7 @@ void loop() {
     } 
     
   }
-
+  //TODO: add logging after 10 seconds
   else if (pagetype.indexOf("logging") >= 0){//up to 4 sensors shown...log everything to file
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
@@ -243,10 +248,31 @@ void loop() {
     tft.setCursor(10, 100); tft.println(sensor4);
     
     //open a new logging file
-    
+    long v1, v2, v3, v4;
+    long v1o = 0; long v2o = 0; long v3o = 0; long v4o = 0;
     
     while  (digitalRead(buttonApin == LOW)){ 
-      refreshLoggingPage(sensor1, sensor2, sensor3, sensor4, sensor1pin, sensor2pin, sensor3pin, sensor4pin);
+        v1 = getSensorReading(sensor1, sensor1pin);
+        v2 = getSensorReading(sensor2, sensor2pin);
+        v3 = getSensorReading(sensor3, sensor3pin);
+        v4 = getSensorReading(sensor4, sensor4pin);
+  
+        //show logged stuff
+        tft.setTextColor(background);
+        tft.setCursor(110,40); tft.println(v1o);
+        tft.setCursor(110,60); tft.println(v2o);
+        tft.setCursor(110,80); tft.println(v3o);
+        tft.setCursor(110,100); tft.println(v4o);
+        tft.setTextColor(outline);
+        tft.setCursor(110,40); tft.println(v1);
+        tft.setCursor(110,60); tft.println(v2);
+        tft.setCursor(110,80); tft.println(v3);
+        tft.setCursor(110,100); tft.println(v4);
+        
+        v1o = v1;
+        v2o = v2;
+        v3o = v3;
+        v4o = v4;
     }    
   }
 
@@ -406,26 +432,7 @@ void getResponse(void){
   }
 }
 
-//logging page
-//TODO:
-//add sd card writting
-//add wait before logging (10 second wait on page before logging starts)
-void refreshLoggingPage(String s1, String s2, String s3, String s4, int p1, int p2, int p3, int p4){
-  //get values
-  long v1 = getSensorReading(s1, p1);
-  long v2 = getSensorReading(s2, p2);
-  long v3 = getSensorReading(s3, p3);
-  long v4 = getSensorReading(s4, p4);
-  
-  //show logged stuff
-  tft.setTextColor(outline);
-  tft.setCursor(110,40); tft.println(v1);
-  tft.setCursor(110,60); tft.println(v2);
-  tft.setCursor(110,80); tft.println(v3);
-  tft.setCursor(110,100); tft.println(v4);
-  //log to sd card
-  return;
-}
+
 
 uint16_t textColorToColor(String color){
   Serial.println(color);
@@ -477,13 +484,13 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
 
 //fake sensor for testing
 int lookup_fake_random_sensor(int max){
- //randomSeed(analogRead(0));
- //return(0 + random() % (max - 0) );
+ randomSeed(analogRead(0));
+ return(0 + random() % (max - 0) );
  //for increment
- if (fakeSensor >= max){
-   fakeSensor = 0;
- }
- else {fakeSensor+=5;}
+ //if (fakeSensor >= max){
+   //fakeSensor = 0;
+ //}
+ //else {fakeSensor+=1;}
  Serial.println("lookup_fake_random_sensor");
  Serial.println(fakeSensor);
  return fakeSensor;
