@@ -9,16 +9,21 @@
  you choose the peaks/warns/etc.
  */
 
-//There is an issue where only one file can be opened at a time...
-//so maybe there is a logging page that you can hit the logging button...
+/* TODO's
+ -peaks displayed and clear by page turn
+ -logging done properly
+ -accelerometer display
+ -page turnning by button
+ -background testing of all sensors with "popup" alerting
+ */
 
 #include <Adafruit_ST7735.h>
 #include <Adafruit_GFX.h>
 #include <SPI.h>
 #include <SD.h>
 
- //pin reference for tft from;
- /*http://webshed.org/wiki/18tftbreakout
+//pin reference for tft from;
+/*http://webshed.org/wiki/18tftbreakout
  eBay Board	 Adafruit Board	Arduino conections
  VCC	 VCC	 5V
  BKL	 LITE	 GND on eBay, 5V on Adafruit
@@ -30,7 +35,7 @@
  LCD CS	 TFT CS	 10 (53 for mega)
  SD CS	 CARD CS 4	
  GND	 GND	 GND
-*/
+ */
 #define SD_CS   4
 #define LCD_CS  53
 #define LCD_DC  9
@@ -75,9 +80,9 @@ void setup() {
   splash.toCharArray(splashc, (splashLen));
   config.close();
   bmpDraw(splashc, 0, 0);
-  
+
   Serial1.begin(9600); //spi for the display, serial for debug, serial1 for OBD II
-  
+
   //read and assign color configs
   config = SD.open("gauges");
   background = textColorToColor(searchFile("background"));
@@ -85,9 +90,6 @@ void setup() {
   fill = textColorToColor(searchFile("fill"));
   textdefault = textColorToColor(searchFile("textdefault"));
   alert = textColorToColor(searchFile("alert"));
-  
-
-  //run diagnostic for sensors?
 
   //blank screen
   delay(2000);
@@ -99,13 +101,6 @@ void setup() {
   tft.fillScreen(background);
 }
 
-//todo/don't forget:
-//-peaks and peak reset
-//  -might do this by doing peaks per page...page turns reset peaks (so then they'd be stored in local peak vars)
-//-dual bar chart
-//-button code debugging
-//-test all meters code
-
 void loop() {
   String sensor1, sensor2, sensor3, sensor4;
   String sensor1text, sensor2text, sensor3text, sensor4text;
@@ -116,67 +111,103 @@ void loop() {
   //read config file for next page
   String pagetype = searchFile("pagetype");
   Serial.println(pagetype);
+
   if (pagetype.indexOf("twobar") >= 0){//2 sensors displayed in 2 bar charts
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
+    sensor1pin = searchFile("sensor1pin").toInt();
+    sensor2pin = searchFile("sensor2pin").toInt();
     sensor1text = searchFile("sensor1text");
     sensor2text = searchFile("sensor2text");
     sensor1max = searchFile("sensor1max").toInt();
     sensor2max = searchFile("sensor2max").toInt();
     sensor1alert = searchFile("sensor1alert").toInt();
     sensor2alert = searchFile("sensor2alert").toInt();
+    sensor1units = searchFile("sensor1units");
+    sensor2units = searchFile("sensor2units");
     tft.fillScreen(background);
-    //loop to show the display and check for the button press
+    tft.setTextSize(1);
+    tft.setTextColor(textdefault);
+    tft.setCursor(0,0);
+    tft.println(sensor1text);
+    tft.setCursor(0,70);
+    tft.println(sensor2text);
+    tft.setCursor(145,0);
+    tft.println(sensor1units);
+    tft.setCursor(145,70);
+    tft.println(sensor2units);
+    long val1;
+    long valOld1 = 0;
+    long val2;
+    long valOld2 = 0;
+    uint16_t barColor1;
+    uint16_t barColor2;
+    Serial.println("twobar init done");
     while (digitalRead(buttonApin == LOW)){
-      //do dual bar stuff
+      val1 = getSensorReading(sensor1, sensor1pin);
+      val2 = getSensorReading(sensor2, sensor2pin);
+      //write value
+      tft.setCursor(100,0); //blank old value first
+      tft.setTextColor(background);
+      tft.println(valOld1);
+      tft.setCursor(100,0);
+      tft.setTextColor(textdefault);
+      tft.println(val1);
+      tft.setCursor(100,70); //blank old value first
+      tft.setTextColor(background);
+      tft.println(valOld2);
+      tft.setCursor(100,70);
+      tft.setTextColor(textdefault);
+      tft.println(val2);
+      //pick the bar color1
+      if (val1 >= sensor1alert){
+        if(barColor1 != alert){
+          barColor1 = alert;
+          valOld1 = 0;
+        }
+      }
+      if (val1 <= sensor1alert) {
+        if(barColor1 != fill){
+          barColor1 = fill;
+          if(val1 <= valOld1){
+            valOld1 = 0;
+          }
+        }
+      }
+      //pick the bar color2
+      if (val2 >= sensor2alert){
+        if(barColor2 != alert){
+          barColor2 = alert;
+          valOld2 = 0;
+        }
+      }
+      if (val2 <= sensor2alert) {
+        if(barColor2 != fill){
+          barColor2 = fill;
+          if(val2 <= valOld1){
+            valOld2 = 0;
+          }
+        }
+      }
+      //draw bar1
+      if (val1 >= valOld1){//if the bar is longer...add
+        tft.fillRect( ( ( (float)160/sensor1max)*valOld1 - 1), 20, ( ((float)160/sensor1max)*(val1-valOld1) + 1), 30, barColor1  );
+      }
+      if (val1 < valOld1){//if the bar is shorter...erase
+        tft.fillRect( ( (float)160/sensor1max*val1), 20, ( (float)160/sensor1max*valOld1), 30, background );
+      }
+      valOld1 = val1;      
+      //draw bar2
+      if (val2 >= valOld2){//if the bar is longer...add
+        tft.fillRect( ( ( (float)160/sensor2max)*valOld2 - 1), 90, ( ((float)160/sensor2max)*(val2-valOld2) + 1), 30, barColor2  );
+      }
+      if (val2 < valOld2){//if the bar is shorter...erase
+        tft.fillRect( ( (float)160/sensor2max*val2), 90, ( (float)160/sensor2max*valOld2), 30, background );
+      }
+      valOld2 = val2;
     }
   }
 
-  else if (pagetype.indexOf("round") >= 0){
-    sensor1 = searchFile("sensor1");
-    sensor1pin = searchFile("sensor1pin").toInt();
-    sensor1text = searchFile("sensor1text");
-    sensor1max = searchFile("sensor1max").toInt();
-    sensor1alert = searchFile("sensor1alert").toInt();
-    tft.fillScreen(background);
-    tft.setTextSize(2);
-    tft.setTextColor(textdefault);
-    tft.setCursor(0, 2);
-    tft.println(sensor1text);
-    tft.drawCircle(80, 70, 50, textdefault);
-    tft.drawCircle(80, 70, 49, textdefault);
-    long val;
-    long valOld = 0;
-    uint16_t barColor;
-    int angle = 0;
-    float rad = 0;
-    while  (digitalRead(buttonApin == LOW)){
-      val = getSensorReading(sensor1, sensor1pin);
-      tft.setCursor(65,60);
-      tft.setTextColor(background);
-      tft.println(valOld);
-      tft.setTextColor(textdefault);
-      tft.setCursor(65,60);
-      tft.println(val);
-      if (val >= sensor1max){barColor = alert;}
-      else {barColor = fill;}
-      if (val > valOld){//if the bar is longer...add
-        //270/sensor1max gives scaling for a 270 degree gauge
-        for(angle = ((float)valOld*270/sensor1max); angle <= (((float)val*270/sensor1max)); angle+=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
-          rad = angle * PI / 180;
-          tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,barColor);
-        }
-      }
-      if (val < valOld){//if the bar is shorter...erase
-        for(angle = (((float)valOld*270/sensor1max)); angle >= ((float)val*270/sensor1max); angle-=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
-          rad = angle * PI / 180;
-          tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,background);
-        }
-      }
-      valOld = val;
-    }
-  }
-  
   else if (pagetype.indexOf("onebar") >=0){//1 sensor 1 bar chart...bigger fonts
     Serial.println("onebar");
     sensor1 = searchFile("sensor1");
@@ -210,8 +241,20 @@ void loop() {
       tft.setTextColor(textdefault);
       tft.println(val);
       //pick the bar color
-      if (val >= sensor1alert){barColor = alert;}
-      else {barColor = fill;}
+      if (val >= sensor1alert){
+        if(barColor != alert){
+          barColor = alert;
+          valOld = 0;
+        }
+      }
+      if (val <= sensor1alert) {
+        if(barColor != fill){
+          barColor = fill;
+          if(val <= valOld1){
+            valOld = 0;
+          }
+        }
+      }
       //draw bar
       if (val >= valOld){//if the bar is longer...add
         tft.fillRect( ( ( (float)160/sensor1max)*valOld - 1), 40, ( ((float)160/sensor1max)*(val-valOld) + 1), 40, barColor  );
@@ -221,10 +264,70 @@ void loop() {
       }
       valOld = val;
     } 
-    
+
   }
+
+  else if (pagetype.indexOf("round") >= 0){
+    sensor1 = searchFile("sensor1");
+    sensor1pin = searchFile("sensor1pin").toInt();
+    sensor1text = searchFile("sensor1text");
+    sensor1max = searchFile("sensor1max").toInt();
+    sensor1alert = searchFile("sensor1alert").toInt();
+    tft.fillScreen(background);
+    tft.setTextSize(2);
+    tft.setTextColor(textdefault);
+    tft.setCursor(0, 2);
+    tft.println(sensor1text);
+    tft.drawCircle(80, 70, 50, textdefault);
+    tft.drawCircle(80, 70, 49, textdefault);
+    long val;
+    long valOld = 0;
+    uint16_t barColor;
+    int angle = 0;
+    float rad = 0;
+    while  (digitalRead(buttonApin == LOW)){
+      val = getSensorReading(sensor1, sensor1pin);
+      tft.setCursor(65,60);
+      tft.setTextColor(background);
+      tft.println(valOld);
+      tft.setTextColor(textdefault);
+      tft.setCursor(65,60);
+      tft.println(val);
+      if (val >= sensor1max){
+        barColor = alert;
+      }
+      else {
+        barColor = fill;
+      }
+      if (val > valOld){//if the bar is longer...add
+        //270/sensor1max gives scaling for a 270 degree gauge
+        for(angle = ((float)valOld*270/sensor1max); angle <= (((float)val*270/sensor1max)); angle+=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
+          rad = angle * PI / 180;
+          tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,barColor);
+        }
+      }
+      if (val < valOld){//if the bar is shorter...erase
+        for(angle = (((float)valOld*270/sensor1max)); angle >= ((float)val*270/sensor1max); angle-=1){ //the "+=1" can be changed for more "fill in" of the arc (gets noticeable at 5)
+          rad = angle * PI / 180;
+          tft.fillCircle( (80-((int)(sin(rad)*43.0) ) ), (70+( (int)(cos(rad)*43.0))), 5,background);
+        }
+      }
+      valOld = val;
+    }
+  }
+
   //TODO: add logging after 10 seconds
   else if (pagetype.indexOf("logging") >= 0){//up to 4 sensors shown...log everything to file
+    /*tft.fillScreen(background);
+     tft.setTextColor(textdefault);
+     tft.setCursor(40, 5);
+     tft.println("Logging will begin in 10 seconds");
+     for (int d = 0;d >= 10; d++){
+     if (digitalRead(buttonApin == HIGH)){
+     loop(); //start over again if we aren't logging
+     }
+     delay(100);
+     }*/
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor3 = searchFile("sensor3");
@@ -242,46 +345,61 @@ void loop() {
     tft.setCursor(40, 5);
     tft.println("Logging");
     tft.setTextSize(1);
-    tft.setCursor(10, 40); tft.println(sensor1);
-    tft.setCursor(10, 60); tft.println(sensor2);
-    tft.setCursor(10, 80); tft.println(sensor3);
-    tft.setCursor(10, 100); tft.println(sensor4);
-    
+    tft.setCursor(10, 40); 
+    tft.println(sensor1);
+    tft.setCursor(10, 60); 
+    tft.println(sensor2);
+    tft.setCursor(10, 80); 
+    tft.println(sensor3);
+    tft.setCursor(10, 100); 
+    tft.println(sensor4);
+
     //open a new logging file
     long v1, v2, v3, v4;
-    long v1o = 0; long v2o = 0; long v3o = 0; long v4o = 0;
-    
+    long v1o = 0; 
+    long v2o = 0; 
+    long v3o = 0; 
+    long v4o = 0;
+
     while  (digitalRead(buttonApin == LOW)){ 
-        v1 = getSensorReading(sensor1, sensor1pin);
-        v2 = getSensorReading(sensor2, sensor2pin);
-        v3 = getSensorReading(sensor3, sensor3pin);
-        v4 = getSensorReading(sensor4, sensor4pin);
-  
-        //show logged stuff
-        tft.setTextColor(background);
-        tft.setCursor(110,40); tft.println(v1o);
-        tft.setCursor(110,60); tft.println(v2o);
-        tft.setCursor(110,80); tft.println(v3o);
-        tft.setCursor(110,100); tft.println(v4o);
-        tft.setTextColor(outline);
-        tft.setCursor(110,40); tft.println(v1);
-        tft.setCursor(110,60); tft.println(v2);
-        tft.setCursor(110,80); tft.println(v3);
-        tft.setCursor(110,100); tft.println(v4);
-        
-        v1o = v1;
-        v2o = v2;
-        v3o = v3;
-        v4o = v4;
+      v1 = getSensorReading(sensor1, sensor1pin);
+      v2 = getSensorReading(sensor2, sensor2pin);
+      v3 = getSensorReading(sensor3, sensor3pin);
+      v4 = getSensorReading(sensor4, sensor4pin);
+
+      //show logged stuff
+      tft.setTextColor(background);
+      tft.setCursor(110,40); 
+      tft.println(v1o);
+      tft.setCursor(110,60); 
+      tft.println(v2o);
+      tft.setCursor(110,80); 
+      tft.println(v3o);
+      tft.setCursor(110,100); 
+      tft.println(v4o);
+      tft.setTextColor(outline);
+      tft.setCursor(110,40); 
+      tft.println(v1);
+      tft.setCursor(110,60); 
+      tft.println(v2);
+      tft.setCursor(110,80); 
+      tft.println(v3);
+      tft.setCursor(110,100); 
+      tft.println(v4);
+
+      v1o = v1;
+      v2o = v2;
+      v3o = v3;
+      v4o = v4;
     }    
   }
 
   else if (pagetype.indexOf("accelerometer") >= 0){//cross bar type chart for accelerometer
     //special...just show the accelerometer and get the accelerometer data
     tft.fillScreen(background);
-     while (digitalRead(buttonApin == LOW)){
-       //display and refresh the page here
-     }
+    while (digitalRead(buttonApin == LOW)){
+      //display and refresh the page here
+    }
   }
 }
 
@@ -323,7 +441,7 @@ long int getOBDIIvalue(String whichSensor){
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A-40
   }
-    if (whichSensor.indexOf("obdcoolant") >=0 ){
+  if (whichSensor.indexOf("obdcoolant") >=0 ){
     Serial1.println("O1O5");
     getResponse();
     getResponse();
@@ -397,7 +515,7 @@ int getSensorReading(String sensorName, int pinNumber){
     if (sensorName.indexOf("temperature") >= 0){
       return lookup_temp(pinNumber);
     }
-    
+
   }
 }
 
@@ -484,16 +602,18 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
 
 //fake sensor for testing
 int lookup_fake_random_sensor(int max){
- randomSeed(analogRead(0));
- return(0 + random() % (max - 0) );
- //for increment
- //if (fakeSensor >= max){
-   //fakeSensor = 0;
- //}
- //else {fakeSensor+=1;}
- Serial.println("lookup_fake_random_sensor");
- Serial.println(fakeSensor);
- return fakeSensor;
+  randomSeed(analogRead(0));
+  return(0 + random() % (max - 0) );
+  //for increment
+  //if (fakeSensor >= max){
+ //   fakeSensor = 0;
+  //}
+  //else {
+  //  fakeSensor+=1;
+  //}
+  Serial.println("lookup_fake_random_sensor");
+  Serial.println(fakeSensor);
+  return fakeSensor;
 }
 
 //sensor code
@@ -569,7 +689,7 @@ long lookup_temp(int tempPin){
   //tval = (long)(tval - (long)117588);
   //return tval;
   if (tval < 8900){
-   return (9999); 
+    return (9999); 
   }
   if (tval > 96000){
     return (0);
@@ -758,5 +878,6 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
 
 

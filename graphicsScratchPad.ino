@@ -80,6 +80,19 @@ void loop(){
   */
 
   //double bar
+  tft.setTextSize(1);
+  tft.setTextColor(textdefault);
+  tft.setCursor(0,0);
+  tft.println("Oil Temp");
+  tft.setCursor(0,70);
+  tft.println("Coolant TEmp");
+  tft.fillRect(0,20,68,30, fill);
+  tft.fillRect(0,90,30,30, fill);
+  
+  tft.setCursor(100,0);
+  tft.println("120");
+  tft.setCursor(100,70);
+  tft.println("79");
   
   //round
   /*tft.setTextSize(2);
