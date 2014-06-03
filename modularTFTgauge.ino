@@ -240,7 +240,7 @@ void loop() {
       tft.setCursor(0,100);
       tft.setTextColor(textdefault);
       tft.println(val);
-      //pick the bar color
+      //pick the bar color              ///somehow this isnt right
       if (val >= sensor1alert){
         if(barColor != alert){
           barColor = alert;
@@ -250,7 +250,7 @@ void loop() {
       if (val <= sensor1alert) {
         if(barColor != fill){
           barColor = fill;
-          if(val <= valOld1){
+          if(val <= valOld){
             valOld = 0;
           }
         }
@@ -603,14 +603,15 @@ String searchFile(String searchFor){ //finds some substring + : and returns the 
 //fake sensor for testing
 int lookup_fake_random_sensor(int max){
   randomSeed(analogRead(0));
-  return(0 + random() % (max - 0) );
+  int mod = (random(-5,5));
   //for increment
-  //if (fakeSensor >= max){
- //   fakeSensor = 0;
-  //}
-  //else {
-  //  fakeSensor+=1;
-  //}
+  fakeSensor+=mod;
+  if (fakeSensor >= max){
+    fakeSensor = 1;
+  }
+  if (fakeSensor < 0){
+    fakeSensor = 1;
+  }
   Serial.println("lookup_fake_random_sensor");
   Serial.println(fakeSensor);
   return fakeSensor;
