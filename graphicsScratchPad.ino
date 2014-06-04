@@ -79,6 +79,7 @@ void loop(){
   tft.println("F");
   */
 
+  /*
   //double bar
   tft.setTextSize(1);
   tft.setTextColor(textdefault);
@@ -93,6 +94,24 @@ void loop(){
   tft.println("120");
   tft.setCursor(100,70);
   tft.println("79");
+  */
+  
+  //accelerometer
+  tft.setTextSize(1);
+  tft.drawRect(60,0,40,128,outline);
+  tft.drawRect(0,44,160,40,outline); 
+  tft.drawRect(60,44,40,40,background);//empty the center line
+  tft.fillCircle(115,64,17,fill);//x ball
+  tft.fillCircle(80,70,17,fill);//y ball
+  
+  tft.setCursor(0,0);
+  tft.println("x: 0.5");
+  tft.setCursor(110,0);
+  tft.println("y: 0.3");
+  tft.setCursor(0,100);
+  tft.println("px: 0.5");
+  tft.setCursor(110,100);
+  tft.println("py: -0.8"); //will have to use abs() compare to get peaks here
   
   //round
   /*tft.setTextSize(2);
@@ -121,13 +140,6 @@ void loop(){
   
 }
 
-int sine(int angle){
-  
-}
-
-int cosine(int angle){
-  
-}
 
 
 

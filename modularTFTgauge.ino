@@ -13,7 +13,6 @@
  -peaks displayed and clear by page turn
  -logging done properly
  -accelerometer display
- -page turnning by button
  -background testing of all sensors with "popup" alerting
  */
 
@@ -102,6 +101,7 @@ void setup() {
 }
 
 void loop() {
+  int peaksensor1, peaksensor2, peaksensor3, peaksensor4;
   String sensor1, sensor2, sensor3, sensor4;
   String sensor1text, sensor2text, sensor3text, sensor4text;
   unsigned int sensor1pin, sensor2pin, sensor3pin, sensor4pin; //regular sensors get pins...but will check if sensor gets pin of 0...marks obdII
@@ -113,6 +113,8 @@ void loop() {
   Serial.println(pagetype);
 
   if (pagetype.indexOf("twobar") >= 0){//2 sensors displayed in 2 bar charts
+    peaksensor1 = 0;
+    peaksensor2 = 0;
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor1pin = searchFile("sensor1pin").toInt();
@@ -132,6 +134,10 @@ void loop() {
     tft.println(sensor1text);
     tft.setCursor(0,70);
     tft.println(sensor2text);
+    tft.setCursor(107,0);
+    tft.println("|");
+    tft.setCursor(107,70);
+    tft.println("|");
     tft.setCursor(145,0);
     tft.println(sensor1units);
     tft.setCursor(145,70);
@@ -148,18 +154,36 @@ void loop() {
       val1 = getSensorReading(sensor1, sensor1pin);
       val2 = getSensorReading(sensor2, sensor2pin);
       //write value
-      tft.setCursor(100,0); //blank old value first
+      tft.setCursor(90,0); //blank old value first
       tft.setTextColor(background);
       tft.println(valOld1);
-      tft.setCursor(100,0);
+      tft.setCursor(90,0);
       tft.setTextColor(textdefault);
       tft.println(val1);
-      tft.setCursor(100,70); //blank old value first
+      tft.setCursor(90,70); //blank old value first
       tft.setTextColor(background);
       tft.println(valOld2);
-      tft.setCursor(100,70);
+      tft.setCursor(90,70);
       tft.setTextColor(textdefault);
       tft.println(val2);
+      if (peaksensor1 < val1){
+        tft.setTextColor(background);
+        tft.setCursor(115,0);
+        tft.println(peaksensor1);
+        tft.setTextColor(textdefault);
+        peaksensor1 = val1;
+        tft.setCursor(115,0);
+        tft.println(peaksensor1);
+      }
+      if (peaksensor2 < val2){
+        tft.setTextColor(background);
+        tft.setCursor(115,70);
+        tft.println(peaksensor2);
+        tft.setTextColor(textdefault);
+        peaksensor2 = val2;
+        tft.setCursor(115,70);
+        tft.println(peaksensor2);
+      }
       //pick the bar color1
       if (val1 >= sensor1alert){
         if(barColor1 != alert){
@@ -211,6 +235,7 @@ void loop() {
 
   else if (pagetype.indexOf("onebar") >=0){//1 sensor 1 bar chart...bigger fonts
     Serial.println("onebar");
+    peaksensor1 = 0;
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();
     sensor1text = searchFile("sensor1text");
@@ -223,18 +248,17 @@ void loop() {
     tft.setCursor(0,5);
     tft.setTextColor(textdefault);
     tft.println(sensor1text);
-    tft.setCursor(50,100);
+    tft.setCursor(110,100);
     tft.println(sensor1units);
+    tft.setCursor(45,100);
+    tft.println("|");
     long val;
     long valOld = 0;
     uint16_t barColor;
     //loop to show the display and check for the button press
     while  (digitalRead(buttonApin) == LOW){ 
-      Serial.println("button low...getting reading");
       //get value
       val = getSensorReading(sensor1, sensor1pin);
-      Serial.println("reading is:");
-      Serial.println(val);
       //write value
       tft.setCursor(0,100); //blank old value first
       tft.setTextColor(background);
@@ -242,6 +266,15 @@ void loop() {
       tft.setCursor(0,100);
       tft.setTextColor(textdefault);
       tft.println(val);
+      if (peaksensor1 < val){
+        tft.setTextColor(background);
+        tft.setCursor(60,100);
+        tft.println(peaksensor1);
+        tft.setTextColor(textdefault);
+        peaksensor1 = val;
+        tft.setCursor(60,100);
+        tft.println(peaksensor1);
+      }
       //pick the bar color              ///somehow this isnt right
       if (val >= sensor1alert){
         if(barColor != alert){
