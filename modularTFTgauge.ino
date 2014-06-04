@@ -44,8 +44,8 @@
 int chipSelect = 10; //for adafruit SD shields + tfts
 Adafruit_ST7735 tft = Adafruit_ST7735(LCD_CS, LCD_DC, LCD_RST);
 
-int buttonApin = 31;
-int fakeSensor=0;
+int buttonApin = 13;
+int fakeSensor = 0;
 
 File config;
 uint16_t background = ST7735_BLACK;
@@ -143,7 +143,8 @@ void loop() {
     uint16_t barColor1;
     uint16_t barColor2;
     Serial.println("twobar init done");
-    while (digitalRead(buttonApin == LOW)){
+    while (digitalRead(buttonApin) == LOW){
+      Serial.println(buttonApin);
       val1 = getSensorReading(sensor1, sensor1pin);
       val2 = getSensorReading(sensor2, sensor2pin);
       //write value
@@ -218,6 +219,7 @@ void loop() {
     sensor1units = searchFile("sensor1units");
     //draw template stuff
     tft.fillScreen(background);
+    tft.setTextSize(2);
     tft.setCursor(0,5);
     tft.setTextColor(textdefault);
     tft.println(sensor1text);
@@ -227,7 +229,7 @@ void loop() {
     long valOld = 0;
     uint16_t barColor;
     //loop to show the display and check for the button press
-    while  (digitalRead(buttonApin == LOW)){ 
+    while  (digitalRead(buttonApin) == LOW){ 
       Serial.println("button low...getting reading");
       //get value
       val = getSensorReading(sensor1, sensor1pin);
@@ -285,7 +287,7 @@ void loop() {
     uint16_t barColor;
     int angle = 0;
     float rad = 0;
-    while  (digitalRead(buttonApin == LOW)){
+    while  (digitalRead(buttonApin) == LOW){
       val = getSensorReading(sensor1, sensor1pin);
       tft.setCursor(65,60);
       tft.setTextColor(background);
@@ -315,6 +317,14 @@ void loop() {
       valOld = val;
     }
   }
+  
+  if (pagetype.indexOf("accelerometer") >= 0){//cross bar type chart for accelerometer
+    //special...just show the accelerometer and get the accelerometer data
+    tft.fillScreen(background);
+    while (digitalRead(buttonApin) == LOW){
+      //display and refresh the page here
+    }
+  }
 
   //TODO: add logging after 10 seconds
   else if (pagetype.indexOf("logging") >= 0){//up to 4 sensors shown...log everything to file
@@ -323,7 +333,7 @@ void loop() {
      tft.setCursor(40, 5);
      tft.println("Logging will begin in 10 seconds");
      for (int d = 0;d >= 10; d++){
-     if (digitalRead(buttonApin == HIGH)){
+     if (digitalRead(buttonApin) == LOW){
      loop(); //start over again if we aren't logging
      }
      delay(100);
@@ -361,7 +371,7 @@ void loop() {
     long v3o = 0; 
     long v4o = 0;
 
-    while  (digitalRead(buttonApin == LOW)){ 
+    while  (digitalRead(buttonApin) == LOW){ 
       v1 = getSensorReading(sensor1, sensor1pin);
       v2 = getSensorReading(sensor2, sensor2pin);
       v3 = getSensorReading(sensor3, sensor3pin);
@@ -391,16 +401,12 @@ void loop() {
       v2o = v2;
       v3o = v3;
       v4o = v4;
-    }    
-  }
-
-  else if (pagetype.indexOf("accelerometer") >= 0){//cross bar type chart for accelerometer
-    //special...just show the accelerometer and get the accelerometer data
-    tft.fillScreen(background);
-    while (digitalRead(buttonApin == LOW)){
-      //display and refresh the page here
     }
+    //close file
+    //reopen the config file
+    config = SD.open("gauges");    
   }
+  
 }
 
 long int getOBDIIvalue(String whichSensor){
