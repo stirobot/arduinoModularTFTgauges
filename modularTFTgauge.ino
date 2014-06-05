@@ -11,7 +11,14 @@
 
 /* TODO's
  -peaks displayed and clear by page turn
+ -peaks for round gauge
+ -peaks for accelerometer
+ -peaks for logging display
  -logging done properly
+ -add 6 readings to logging display?
+ -make a separate non-logging display that just shows 6 items?
+ -even better you go to the logging page and if you leave it for 10 seconds it logs
+ -if you tap it again it just displays
  -accelerometer display
  -background testing of all sensors with "popup" alerting
  */
@@ -101,10 +108,10 @@ void setup() {
 }
 
 void loop() {
-  int peaksensor1, peaksensor2, peaksensor3, peaksensor4;
-  String sensor1, sensor2, sensor3, sensor4;
+  int peaksensor1, peaksensor2, peaksensor3, peaksensor4, peaksensor5, peaksensor6;
+  String sensor1, sensor2, sensor3, sensor4, sensor5, sensor6;
   String sensor1text, sensor2text, sensor3text, sensor4text;
-  unsigned int sensor1pin, sensor2pin, sensor3pin, sensor4pin; //regular sensors get pins...but will check if sensor gets pin of 0...marks obdII
+  unsigned int sensor1pin, sensor2pin, sensor3pin, sensor4pin, sensor5pin, sensor6pin; //regular sensors get pins...but will check if sensor gets pin of 0...marks obdII
   unsigned int sensor1max, sensor2max, sensor3max, sensor4max;
   unsigned int sensor1alert, sensor2alert, sensor3alert, sensor4alert;
   String sensor1units, sensor2units;
@@ -303,6 +310,7 @@ void loop() {
   }
 
   else if (pagetype.indexOf("round") >= 0){
+    peaksensor1 = 0;
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();
     sensor1text = searchFile("sensor1text");
@@ -322,12 +330,24 @@ void loop() {
     float rad = 0;
     while  (digitalRead(buttonApin) == LOW){
       val = getSensorReading(sensor1, sensor1pin);
-      tft.setCursor(65,60);
+      tft.setTextSize(2);
+      tft.setCursor(64,60);
       tft.setTextColor(background);
       tft.println(valOld);
       tft.setTextColor(textdefault);
-      tft.setCursor(65,60);
+      tft.setCursor(64,60);
       tft.println(val);
+      if (peaksensor1 < val){
+        tft.setTextSize(1);
+        tft.setTextColor(background);
+        tft.setCursor(64,78);
+        tft.println(peaksensor1);
+        tft.setTextColor(textdefault);
+        peaksensor1 = val;
+        tft.setCursor(64,78);
+        tft.println(peaksensor1);
+      }
+
       if (val >= sensor1max){
         barColor = alert;
       }
@@ -350,35 +370,109 @@ void loop() {
       valOld = val;
     }
   }
-  
-  if (pagetype.indexOf("accelerometer") >= 0){//cross bar type chart for accelerometer
+
+  if (pagetype.indexOf("accel") >= 0){//cross bar type chart for accelerometer
     //special...just show the accelerometer and get the accelerometer data
+    sensor1 = searchFile("sensor1");
+    sensor1pin = searchFile("sensor1pin").toInt();    
+    sensor2 = searchFile("sensor2");
+    sensor2pin = searchFile("sensor2pin").toInt();
+    long xval, yval;
+    long xvalold = 0;
+    long yvalold = 0;
+    long xpeak = 0; 
+    long ypeak = 0;
     tft.fillScreen(background);
+    tft.setTextSize(1);
+    tft.drawRect(60,0,40,128,outline);
+    tft.drawRect(0,44,160,40,outline); 
+    tft.drawRect(60,44,40,40,background);//empty the center line
+
+    tft.setCursor(0,0);
+    tft.println("x:");
+    tft.setCursor(110,0);
+    tft.println("y:");
+    tft.setCursor(0,100);
+    tft.println("px:");
+    tft.setCursor(110,100);
+    tft.println("py:"); 
+
     while (digitalRead(buttonApin) == LOW){
-      //display and refresh the page here
+      xval = getSensorReading(sensor1, sensor1pin);
+      yval = getSensorReading(sensor2, sensor2pin);
+      Serial.println("xy");
+      Serial.println(xval);
+      Serial.println(yval);
+      tft.setTextColor(background);
+      tft.setCursor(10, 0);
+      tft.println((float)xvalold/1000);
+      tft.setTextColor(textdefault);
+      tft.setCursor(10, 0);
+      tft.println((float)xval/1000);
+      tft.setCursor(120, 0);
+      tft.println((float)yvalold/1000);
+      tft.setTextColor(textdefault);
+      tft.setCursor(120, 0);
+      tft.println((float)yval/1000);
+      if (abs(peaksensor1) < abs(xval)){
+        tft.setTextColor(background);
+        tft.setCursor(10,100);
+        tft.println((float)peaksensor1/1000);
+        tft.setTextColor(textdefault);
+        peaksensor1 = xval;
+        tft.setCursor(10,100);
+        tft.println((float)peaksensor1/1000);
+      }    
+      if (abs(peaksensor2) < abs(yval)){
+        tft.setTextColor(background);
+        tft.setCursor(120,100);
+        tft.println((float)peaksensor1/1000);
+        tft.setTextColor(textdefault);
+        peaksensor1 = xval;
+        tft.setCursor(120,100);
+        tft.println((float)peaksensor1/1000);
+      }
+   
+      tft.fillCircle(80-(float)80/1500*xvalold,64,17,background); //x old ball
+      tft.fillCircle(80,64+(float)64/1500*yvalold,17,background); //y old ball
+      tft.fillCircle(80-(float)80/1500*xval,64,17,fill); //x ball
+      tft.fillCircle(80,64+(float)64/1500*yval,17,fill); //y ball
+      
+      xvalold = xval;
+      yvalold = yval;
     }
   }
 
-  //TODO: add logging after 10 seconds
   else if (pagetype.indexOf("logging") >= 0){//up to 4 sensors shown...log everything to file
-    /*tft.fillScreen(background);
-     tft.setTextColor(textdefault);
-     tft.setCursor(40, 5);
-     tft.println("Logging will begin in 10 seconds");
-     for (int d = 0;d >= 10; d++){
-     if (digitalRead(buttonApin) == LOW){
-     loop(); //start over again if we aren't logging
-     }
-     delay(100);
-     }*/
+    bool logging = true;
+    int ct = 0;
+    while ((digitalRead(buttonApin) == HIGH)){
+    }
+    while ((digitalRead(buttonApin) == LOW) && (ct <= 100)){
+      ct++;
+      delay(10);
+    }
+    if (ct <= 100){
+      logging = false;
+    }
+    peaksensor1=0;
+    peaksensor2=0;
+    peaksensor3=0;
+    peaksensor4=0;
+    peaksensor5=0;
+    peaksensor6=0;
     sensor1 = searchFile("sensor1");
     sensor2 = searchFile("sensor2");
     sensor3 = searchFile("sensor3");
     sensor4 = searchFile("sensor4");
+    sensor5 = searchFile("sensor5");
+    sensor6 = searchFile("sensor6");
     sensor1pin = searchFile("sensor1pin").toInt();
     sensor2pin = searchFile("sensor2pin").toInt();
     sensor3pin = searchFile("sensor3pin").toInt();
     sensor4pin = searchFile("sensor4pin").toInt();
+    sensor5pin = searchFile("sensor5pin").toInt();
+    sensor6pin = searchFile("sensor6pin").toInt();
     //close the settings file
     config.close();
     //draw a blank logging page here:
@@ -386,60 +480,140 @@ void loop() {
     tft.setTextColor(textdefault);
     tft.setTextSize(2);
     tft.setCursor(40, 5);
-    tft.println("Logging");
+    if (logging == true){
+      tft.println("Logging");
+    }
+    if (logging == false){
+      tft.println("Sensors");
+    }
     tft.setTextSize(1);
-    tft.setCursor(10, 40); 
+    tft.setCursor(20, 40); 
     tft.println(sensor1);
-    tft.setCursor(10, 60); 
+    tft.setCursor(20, 50); 
     tft.println(sensor2);
-    tft.setCursor(10, 80); 
+    tft.setCursor(20, 60); 
     tft.println(sensor3);
-    tft.setCursor(10, 100); 
+    tft.setCursor(20, 70); 
     tft.println(sensor4);
+    tft.setCursor(20, 80);
+    tft.println(sensor5);
+    tft.setCursor(20, 90);
+    tft.println(sensor6);
 
     //open a new logging file
-    long v1, v2, v3, v4;
+    long v1, v2, v3, v4, v5, v6;
     long v1o = 0; 
     long v2o = 0; 
     long v3o = 0; 
     long v4o = 0;
+    long v5o = 0;
+    long v6o = 0;
 
     while  (digitalRead(buttonApin) == LOW){ 
       v1 = getSensorReading(sensor1, sensor1pin);
       v2 = getSensorReading(sensor2, sensor2pin);
       v3 = getSensorReading(sensor3, sensor3pin);
       v4 = getSensorReading(sensor4, sensor4pin);
-
+      v5 = getSensorReading(sensor5, sensor5pin);
+      v6 = getSensorReading(sensor6, sensor6pin);
       //show logged stuff
       tft.setTextColor(background);
-      tft.setCursor(110,40); 
+      tft.setCursor(100,40); 
       tft.println(v1o);
-      tft.setCursor(110,60); 
+      tft.setCursor(100,50); 
       tft.println(v2o);
-      tft.setCursor(110,80); 
+      tft.setCursor(100,60); 
       tft.println(v3o);
-      tft.setCursor(110,100); 
+      tft.setCursor(100,70); 
       tft.println(v4o);
-      tft.setTextColor(outline);
-      tft.setCursor(110,40); 
-      tft.println(v1);
-      tft.setCursor(110,60); 
-      tft.println(v2);
-      tft.setCursor(110,80); 
-      tft.println(v3);
-      tft.setCursor(110,100); 
-      tft.println(v4);
+      tft.setCursor(100,80); 
+      tft.println(v5o);
+      tft.setCursor(100,90); 
+      tft.println(v6o);
 
+      tft.setTextColor(outline);
+      tft.setCursor(100,40); 
+      tft.println(v1);
+      tft.setCursor(100,50); 
+      tft.println(v2);
+      tft.setCursor(100,60); 
+      tft.println(v3);
+      tft.setCursor(100,70); 
+      tft.println(v4);
+      tft.setCursor(100,80); 
+      tft.println(v5);
+      tft.setCursor(100,90); 
+      tft.println(v6);
+
+      if (peaksensor1 < v1){
+        tft.setTextColor(background);
+        tft.setCursor(125,40);
+        tft.println(peaksensor1);
+        tft.setTextColor(textdefault);
+        peaksensor1 = v1;
+        tft.setCursor(125,40);
+        tft.println(peaksensor1);
+      }
+      if (peaksensor2 < v2){
+        tft.setTextColor(background);
+        tft.setCursor(125,50);
+        tft.println(peaksensor2);
+        tft.setTextColor(textdefault);
+        peaksensor2 = v2;
+        tft.setCursor(125,50);
+        tft.println(peaksensor2);
+      }      
+      if (peaksensor3 < v3){
+        tft.setTextColor(background);
+        tft.setCursor(125,60);
+        tft.println(peaksensor3);
+        tft.setTextColor(textdefault);
+        peaksensor3 = v3;
+        tft.setCursor(125,60);
+        tft.println(peaksensor3);
+      }      
+      if (peaksensor4 < v4){
+        tft.setTextColor(background);
+        tft.setCursor(125,70);
+        tft.println(peaksensor4);
+        tft.setTextColor(textdefault);
+        peaksensor4 = v4;
+        tft.setCursor(125,70);
+        tft.println(peaksensor1);
+      }      
+      if (peaksensor5 < v5){
+        tft.setTextColor(background);
+        tft.setCursor(125,80);
+        tft.println(peaksensor5);
+        tft.setTextColor(textdefault);
+        peaksensor5 = v5;
+        tft.setCursor(125,80);
+        tft.println(peaksensor5);
+      }      
+      if (peaksensor6 < v6){
+        tft.setTextColor(background);
+        tft.setCursor(125,90);
+        tft.println(peaksensor6);
+        tft.setTextColor(textdefault);
+        peaksensor6 = v6;
+        tft.setCursor(125,90);
+        tft.println(peaksensor6);
+      }
       v1o = v1;
       v2o = v2;
       v3o = v3;
       v4o = v4;
+      v5o = v5;
+      v6o = v6;
+      if (logging == true){
+        //log stuff here
+      }
     }
     //close file
     //reopen the config file
     config = SD.open("gauges");    
   }
-  
+
 }
 
 long int getOBDIIvalue(String whichSensor){
@@ -547,6 +721,11 @@ int getSensorReading(String sensorName, int pinNumber){
     }
     if (sensorName.indexOf("accely") >= 0){
       return getAccelerometerData(pinNumber);
+    }
+    if (sensorName.indexOf("fakeaccel") >= 0){
+      Serial.println("random accel");
+      Serial.println(random(-1500,1500));
+      return random(-1500,1500);    
     }
     if (sensorName.indexOf("boostpressure") >= 0){
       return lookup_boost(pinNumber);
@@ -918,6 +1097,8 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
+
 
 
 

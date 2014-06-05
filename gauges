@@ -10,16 +10,25 @@ textdefault:blue
 alert:white
 
 #monitorlist - a list of sensors to monitor constantly and switch to if there are issues
-#monitorlist:3
-#sensor1:oiltemp
-#sensor1pin:10
-#sensor1alert:300
-#sensor1:oiltemp
-#sensor1pin:10
-#sensor1alert:300
-#sensor1:oiltemp
-#sensor1pin:10
-#sensor1alert:300
+monitorlist
+sensor1:fake
+sensor1pin:10
+sensor1alert:300
+sensor2:fake
+sensor2pin:10
+sensor2alert:300
+sensor3:fake
+sensor3pin:10
+sensor3alert:300
+sensor4:fake
+sensor4pin:10
+sensor4alert:300
+sensor5:fake
+sensor5pin:10
+sensor5alert:300
+sensor6:fake
+sensor6pin:10
+sensor6alert:300
 
 #pin config
 #sensorName:pin
@@ -73,6 +82,12 @@ sensor2alert:0
 sensor1units:F
 sensor2units:F
 
+pagetype:accel
+sensor1:fakeaccel
+sensor1pin:2
+sensor2:fakeaccel
+sensor2pin:2
+
 pagetype:round
 sensor1:fake
 sensor1pin:300
@@ -118,7 +133,11 @@ sensor1:fake
 sensor2:fake
 sensor3:fake
 sensor4:fake
+sensor5:fake
+sensor6:fake
 sensor1pin:300
 sensor2pin:200
 sensor3pin:250
 sensor4pin:100
+sensor5pin:20
+sensor6pin:350
