@@ -372,7 +372,6 @@ void loop() {
   }
 
   if (pagetype.indexOf("accel") >= 0){//cross bar type chart for accelerometer
-    //special...just show the accelerometer and get the accelerometer data
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();    
     sensor2 = searchFile("sensor2");
@@ -384,10 +383,10 @@ void loop() {
     long ypeak = 0;
     tft.fillScreen(background);
     tft.setTextSize(1);
-    tft.drawRect(60,0,40,128,outline);
+    /*tft.drawRect(60,0,40,128,outline);
     tft.drawRect(0,44,160,40,outline); 
     tft.drawRect(60,44,40,40,background);//empty the center line
-
+*/
     tft.setCursor(0,0);
     tft.println("x:");
     tft.setCursor(110,0);
@@ -400,44 +399,43 @@ void loop() {
     while (digitalRead(buttonApin) == LOW){
       xval = getSensorReading(sensor1, sensor1pin);
       yval = getSensorReading(sensor2, sensor2pin);
-      Serial.println("xy");
-      Serial.println(xval);
-      Serial.println(yval);
       tft.setTextColor(background);
       tft.setCursor(10, 0);
-      tft.println((float)xvalold/1000);
+      tft.println((float)xvalold/100);
       tft.setTextColor(textdefault);
       tft.setCursor(10, 0);
-      tft.println((float)xval/1000);
+      tft.println((float)xval/100);
+      tft.setTextColor(background);
       tft.setCursor(120, 0);
-      tft.println((float)yvalold/1000);
+      tft.println((float)yvalold/100);
       tft.setTextColor(textdefault);
       tft.setCursor(120, 0);
-      tft.println((float)yval/1000);
+      tft.println((float)yval/100);
       if (abs(peaksensor1) < abs(xval)){
         tft.setTextColor(background);
-        tft.setCursor(10,100);
-        tft.println((float)peaksensor1/1000);
+        tft.setCursor(14,100);
+        tft.println((float)peaksensor1/100);
         tft.setTextColor(textdefault);
         peaksensor1 = xval;
-        tft.setCursor(10,100);
-        tft.println((float)peaksensor1/1000);
+        tft.setCursor(14,100);
+        tft.println((float)peaksensor1/100);
       }    
       if (abs(peaksensor2) < abs(yval)){
         tft.setTextColor(background);
-        tft.setCursor(120,100);
-        tft.println((float)peaksensor1/1000);
+        tft.setCursor(124,100);
+        tft.println((float)peaksensor2/100);
         tft.setTextColor(textdefault);
-        peaksensor1 = xval;
-        tft.setCursor(120,100);
-        tft.println((float)peaksensor1/1000);
+        peaksensor2 = yval;
+        tft.setCursor(124,100);
+        tft.println((float)peaksensor2/100);
       }
    
-      tft.fillCircle(80-(float)80/1500*xvalold,64,17,background); //x old ball
-      tft.fillCircle(80,64+(float)64/1500*yvalold,17,background); //y old ball
-      tft.fillCircle(80-(float)80/1500*xval,64,17,fill); //x ball
-      tft.fillCircle(80,64+(float)64/1500*yval,17,fill); //y ball
-      
+      tft.fillCircle(80-(float)80/120*xvalold,64,5,background); //x old ball
+      tft.fillCircle(80-(float)80/120*xval,64,5,fill); //x ball
+   
+      tft.fillCircle(80,64+(float)64/120*yvalold,5,background); //y old ball      
+      tft.fillCircle(80,64+(float)64/120*yval,5,fill); //y ball
+    
       xvalold = xval;
       yvalold = yval;
     }
@@ -707,6 +705,9 @@ int getSensorReading(String sensorName, int pinNumber){
   }
   //else call the appropriate Analog to digital conversion function on the appropirate pin
   else {
+    if (sensorName.indexOf("fakeaccel") >= 0){
+      return random(-1500,1500);    
+    }
     if (sensorName.indexOf("fake") >= 0){
       return lookup_fake_random_sensor(pinNumber);
     }
@@ -721,11 +722,6 @@ int getSensorReading(String sensorName, int pinNumber){
     }
     if (sensorName.indexOf("accely") >= 0){
       return getAccelerometerData(pinNumber);
-    }
-    if (sensorName.indexOf("fakeaccel") >= 0){
-      Serial.println("random accel");
-      Serial.println(random(-1500,1500));
-      return random(-1500,1500);    
     }
     if (sensorName.indexOf("boostpressure") >= 0){
       return lookup_boost(pinNumber);
@@ -839,8 +835,10 @@ int lookup_fake_random_sensor(int max){
 int getAccelerometerData (int axis){
   int zerog = 512;
   int rc = analogRead(axis);
+  Serial.println(axis);
+  Serial.println(rc);
   int top =( (zerog - rc) ) ; 
-  float frtrn = (((float)top/(float)154)*100);  //158Vint jumps are 1g for the ADXL213AE (original accel)
+  float frtrn = (((float)top/(float)158)*100);  //158Vint jumps are 1g for the ADXL213AE (original accel)
   //154Vint jumps are 1g for the ADXL322 (updated one)
   int rtrn = (int)frtrn;
   return rtrn;
