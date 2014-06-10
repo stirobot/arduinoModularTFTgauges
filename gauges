@@ -8,27 +8,7 @@ outline:red
 fill:red
 textdefault:blue
 alert:white
-
-#monitorlist - a list of sensors to monitor constantly and switch to if there are issues
-monitorlist
-sensor1:fake
-sensor1pin:10
-sensor1alert:300
-sensor2:fake
-sensor2pin:10
-sensor2alert:300
-sensor3:fake
-sensor3pin:10
-sensor3alert:300
-sensor4:fake
-sensor4pin:10
-sensor4alert:300
-sensor5:fake
-sensor5pin:10
-sensor5alert:300
-sensor6:fake
-sensor6pin:10
-sensor6alert:300
+severe:red
 
 #pin config
 #sensorName:pin
@@ -83,10 +63,10 @@ sensor1units:F
 sensor2units:F
 
 pagetype:accel
-sensor1:fakeaccel
-sensor1pin:2
-sensor2:fakeaccel
-sensor2pin:2
+sensor1:accelx
+sensor1pin:8
+sensor2:accely
+sensor2pin:9
 
 pagetype:round
 sensor1:fake
@@ -125,10 +105,12 @@ sensor1:fake
 sensor1pin:21
 sensor1text:Boost
 sensor1max:21
-sensor1alert:20
+sensor1alert:18
 sensor1units:Psi
 
+allgauges:
 pagetype:logging
+monitorinterval:40
 sensor1:fake
 sensor2:fake
 sensor3:fake
@@ -141,3 +123,15 @@ sensor3pin:250
 sensor4pin:100
 sensor5pin:20
 sensor6pin:350
+sensor1alert:200
+sensor2alert:150
+sensor3alert:200
+sensor4alert:90
+sensor5alert:18
+sensor6alert:300
+sensor1severe:255
+sensor2severe:175
+sensor3severe:240
+sensor4severe:99
+sensor5severe:20
+sensor6severe:340

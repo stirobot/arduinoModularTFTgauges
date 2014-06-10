@@ -10,17 +10,21 @@
  */
 
 /* TODO's
- -peaks displayed and clear by page turn
- -peaks for round gauge
- -peaks for accelerometer
- -peaks for logging display
- -logging done properly
- -add 6 readings to logging display?
- -make a separate non-logging display that just shows 6 items?
- -even better you go to the logging page and if you leave it for 10 seconds it logs
- -if you tap it again it just displays
- -accelerometer display
+ short:
+ -logging done properly to file
  -background testing of all sensors with "popup" alerting
+ -these sensors will be the same as the ones used for the logging page
+ -make jump to logging page with highlighting on over alerts
+ -make 2 levels of alert (alert = low, sever = high)
+ -mess with accelerometer display to have trails and other nonsense
+ -debug obd II stuffs
+ long:
+ -find an elegant solution to negative warnings (oil pressure)
+ -make graphics scalable to the 2.2" tft spi monitors
+ -code cleanup
+ -more error catching
+ -use arrays instead of individual variables
+ -make shit fucking awesome
  */
 
 #include <Adafruit_ST7735.h>
@@ -42,10 +46,31 @@
  SD CS	 CARD CS 4	
  GND	 GND	 GND
  */
+
+/* Other connections
+ 4 wire for accelerometer 
+ 10 for tft
+ 2 wire for uart obd (+1 for gnd)
+ obd II db9 - pre-assembled 5' cable (so the obd II uart device should be co-located with the mega)
+ Connector styles available:
+ spade - 1
+ jst - 2
+ molex - 4 (but large)
+ rj45 - 8 pin
+ */
+
 #define SD_CS   4
 #define LCD_CS  53
 #define LCD_DC  9
 #define LCD_RST 8
+
+//1.8" tft
+#define LCDx   160
+#define LCDy   128
+
+/*
+2.2" 240 x 320
+ */
 
 int chipSelect = 10; //for adafruit SD shields + tfts
 Adafruit_ST7735 tft = Adafruit_ST7735(LCD_CS, LCD_DC, LCD_RST);
@@ -59,10 +84,18 @@ uint16_t outline = ST7735_WHITE;
 uint16_t fill = ST7735_BLUE;
 uint16_t textdefault = ST7735_RED;
 uint16_t alert = ST7735_YELLOW;
+uint16_t severe = ST7735_YELLOW;
 
 //This is a character buffer that will store the data from the serial port
 char rxData[30];
 char rxIndex=0;
+
+String sensor1monitor, sensor2monitor, sensor3monitor, sensor4monitor, sensor5monitor, sensor6monitor;
+int monitorpin1, monitorpin2, monitorpin3, monitorpin4, monitorpin5, monitorpin6;
+int monitoralert1, monitoralert2, monitoralert3, monitoralert4, monitoralert5, monitoralert6;
+int monitorsevere1, monitorsevere2, monitorsevere3, monitorsevere4, monitorsevere5, monitorsevere6;
+int monitorinterval = 30;
+boolean alerting = false;
 
 void setup() {
   //read some basic settings from the SD card
@@ -87,7 +120,7 @@ void setup() {
   config.close();
   bmpDraw(splashc, 0, 0);
 
-  Serial1.begin(9600); //spi for the display, serial for debug, serial1 for OBD II
+  Serial1.begin(9600); //spi for the display, serial for debug, serial for OBD II
 
   //read and assign color configs
   config = SD.open("gauges");
@@ -96,7 +129,37 @@ void setup() {
   fill = textColorToColor(searchFile("fill"));
   textdefault = textColorToColor(searchFile("textdefault"));
   alert = textColorToColor(searchFile("alert"));
+  severe = textColorToColor(searchFile("severe"));
 
+  searchFile("allgauges");
+  monitorinterval = searchFile("monitorinterval").toInt();
+  sensor1monitor = searchFile("sensor1");
+  sensor2monitor = searchFile("sensor2");
+  sensor3monitor = searchFile("sensor3");
+  sensor4monitor = searchFile("sensor4");
+  sensor5monitor = searchFile("sensor5");
+  sensor6monitor = searchFile("sensor6");
+  monitorpin1 = searchFile("sensor1pin").toInt();
+  monitorpin2 = searchFile("sensor2pin").toInt();
+  monitorpin3 = searchFile("sensor3pin").toInt();
+  monitorpin4 = searchFile("sensor4pin").toInt();
+  monitorpin5 = searchFile("sensor5pin").toInt();
+  monitorpin6 = searchFile("sensor6pin").toInt();
+  monitoralert1 = searchFile("sensor1alert").toInt();
+  monitoralert2 = searchFile("sensor2alert").toInt();
+  monitoralert3 = searchFile("sensor3alert").toInt();
+  monitoralert4 = searchFile("sensor4alert").toInt();
+  monitoralert5 = searchFile("sensor5alert").toInt();
+  monitoralert6 = searchFile("sensor6alert").toInt();  
+  monitorsevere1 = searchFile("sensor1severe").toInt();
+  monitorsevere2 = searchFile("sensor2severe").toInt();
+  monitorsevere3 = searchFile("sensor3severe").toInt();
+  monitorsevere4 = searchFile("sensor4severe").toInt();
+  monitorsevere5 = searchFile("sensor5severe").toInt();
+  monitorsevere6 = searchFile("sensor6severe").toInt();
+  
+  config.close();
+  config = SD.open("gauges");
   //blank screen
   delay(2000);
   Serial1.println("ATZ");
@@ -113,12 +176,13 @@ void loop() {
   String sensor1text, sensor2text, sensor3text, sensor4text;
   unsigned int sensor1pin, sensor2pin, sensor3pin, sensor4pin, sensor5pin, sensor6pin; //regular sensors get pins...but will check if sensor gets pin of 0...marks obdII
   unsigned int sensor1max, sensor2max, sensor3max, sensor4max;
-  unsigned int sensor1alert, sensor2alert, sensor3alert, sensor4alert;
+  unsigned int sensor1alert, sensor2alert, sensor3alert, sensor4alert, sensor5alert, sensor6alert;
+  unsigned int sensor1severe, sensor2severe, sensor3severe, sensor4severe, sensor5severe, sensor6severe; 
   String sensor1units, sensor2units;
   //read config file for next page
   String pagetype = searchFile("pagetype");
   Serial.println(pagetype);
-
+  int a = 0;
   if (pagetype.indexOf("twobar") >= 0){//2 sensors displayed in 2 bar charts
     peaksensor1 = 0;
     peaksensor2 = 0;
@@ -156,7 +220,12 @@ void loop() {
     uint16_t barColor1;
     uint16_t barColor2;
     Serial.println("twobar init done");
-    while (digitalRead(buttonApin) == LOW){
+    while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
+      if (a >=monitorinterval){
+        alerting = monitorSensors();
+        a = 0;
+      }
+      a++;
       Serial.println(buttonApin);
       val1 = getSensorReading(sensor1, sensor1pin);
       val2 = getSensorReading(sensor2, sensor2pin);
@@ -223,18 +292,18 @@ void loop() {
       }
       //draw bar1
       if (val1 >= valOld1){//if the bar is longer...add
-        tft.fillRect( ( ( (float)160/sensor1max)*valOld1 - 1), 20, ( ((float)160/sensor1max)*(val1-valOld1) + 1), 30, barColor1  );
+        tft.fillRect( ( ( (float)LCDx/sensor1max)*valOld1 - 1), 20, ( ((float)LCDx/sensor1max)*(val1-valOld1) + 1), 30, barColor1  );
       }
       if (val1 < valOld1){//if the bar is shorter...erase
-        tft.fillRect( ( (float)160/sensor1max*val1), 20, ( (float)160/sensor1max*valOld1), 30, background );
+        tft.fillRect( ( (float)LCDx/sensor1max*val1), 20, ( (float)LCDx/sensor1max*valOld1), 30, background );
       }
       valOld1 = val1;      
       //draw bar2
       if (val2 >= valOld2){//if the bar is longer...add
-        tft.fillRect( ( ( (float)160/sensor2max)*valOld2 - 1), 90, ( ((float)160/sensor2max)*(val2-valOld2) + 1), 30, barColor2  );
+        tft.fillRect( ( ( (float)LCDx/sensor2max)*valOld2 - 1), 90, ( ((float)LCDx/sensor2max)*(val2-valOld2) + 1), 30, barColor2  );
       }
       if (val2 < valOld2){//if the bar is shorter...erase
-        tft.fillRect( ( (float)160/sensor2max*val2), 90, ( (float)160/sensor2max*valOld2), 30, background );
+        tft.fillRect( ( (float)LCDx/sensor2max*val2), 90, ( (float)LCDx/sensor2max*valOld2), 30, background );
       }
       valOld2 = val2;
     }
@@ -263,7 +332,12 @@ void loop() {
     long valOld = 0;
     uint16_t barColor;
     //loop to show the display and check for the button press
-    while  (digitalRead(buttonApin) == LOW){ 
+    while  ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){ 
+      if (a >=monitorinterval){
+        alerting = monitorSensors();
+        a = 0;
+      }
+      a++;
       //get value
       val = getSensorReading(sensor1, sensor1pin);
       //write value
@@ -299,10 +373,10 @@ void loop() {
       }
       //draw bar
       if (val >= valOld){//if the bar is longer...add
-        tft.fillRect( ( ( (float)160/sensor1max)*valOld - 1), 40, ( ((float)160/sensor1max)*(val-valOld) + 1), 40, barColor  );
+        tft.fillRect( ( ( (float)LCDx/sensor1max)*valOld - 1), 40, ( ((float)LCDx/sensor1max)*(val-valOld) + 1), 40, barColor  );
       }
       if (val < valOld){//if the bar is shorter...erase
-        tft.fillRect( ( (float)160/sensor1max*val), 40, ( (float)160/sensor1max*valOld), 40, background );
+        tft.fillRect( ( (float)LCDx/sensor1max*val), 40, ( (float)LCDx/sensor1max*valOld), 40, background );
       }
       valOld = val;
     } 
@@ -328,8 +402,12 @@ void loop() {
     uint16_t barColor;
     int angle = 0;
     float rad = 0;
-    while  (digitalRead(buttonApin) == LOW){
-      val = getSensorReading(sensor1, sensor1pin);
+    while  ((digitalRead(buttonApin) == LOW) || (alerting == false)){
+      if (a >=monitorinterval){
+        alerting = monitorSensors();
+        a = 0;
+      }
+      a++;      val = getSensorReading(sensor1, sensor1pin);
       tft.setTextSize(2);
       tft.setCursor(64,60);
       tft.setTextColor(background);
@@ -383,10 +461,10 @@ void loop() {
     long ypeak = 0;
     tft.fillScreen(background);
     tft.setTextSize(1);
-    /*tft.drawRect(60,0,40,128,outline);
-    tft.drawRect(0,44,160,40,outline); 
-    tft.drawRect(60,44,40,40,background);//empty the center line
-*/
+    /*tft.drawRect(60,0,40,LCDy,outline);
+     tft.drawRect(0,44,LCDx,40,outline); 
+     tft.drawRect(60,44,40,40,background);//empty the center line
+     */
     tft.setCursor(0,0);
     tft.println("x:");
     tft.setCursor(110,0);
@@ -396,7 +474,12 @@ void loop() {
     tft.setCursor(110,100);
     tft.println("py:"); 
 
-    while (digitalRead(buttonApin) == LOW){
+    while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
+      if (a >=monitorinterval){
+        alerting = monitorSensors();
+        a = 0;
+      }
+      a++;
       xval = getSensorReading(sensor1, sensor1pin);
       yval = getSensorReading(sensor2, sensor2pin);
       tft.setTextColor(background);
@@ -429,14 +512,19 @@ void loop() {
         tft.setCursor(124,100);
         tft.println((float)peaksensor2/100);
       }
-   
-      tft.fillCircle(80-(float)80/120*xvalold,64,5,background); //x old ball
-      tft.fillCircle(80-(float)80/120*xval,64,5,fill); //x ball
-   
-      tft.fillCircle(80,64+(float)64/120*yvalold,5,background); //y old ball      
-      tft.fillCircle(80,64+(float)64/120*yval,5,fill); //y ball
-    
-      xvalold = xval;
+
+      /*tft.fillCircle(80-(float)80/120*xvalold,64,5,background); //x old ball
+       tft.fillCircle(80-(float)80/120*xval,64,5,fill); //x ball
+       tft.fillCircle(80,64+(float)64/120*yvalold,5,background); //y old ball      
+       tft.fillCircle(80,64+(float)64/120*yval,5,fill); //y ball
+       */
+
+      //1 ball...uniball...oneballin...
+      tft.fillCircle(80-(float)80/120*xvalold,64+(float)64/120*yvalold,10,background);//oldball
+      tft.fillCircle(80-(float)80/120*xval,64+(float)64/120*yval,10,fill);//newball
+
+
+        xvalold = xval;
       yvalold = yval;
     }
   }
@@ -459,18 +547,6 @@ void loop() {
     peaksensor4=0;
     peaksensor5=0;
     peaksensor6=0;
-    sensor1 = searchFile("sensor1");
-    sensor2 = searchFile("sensor2");
-    sensor3 = searchFile("sensor3");
-    sensor4 = searchFile("sensor4");
-    sensor5 = searchFile("sensor5");
-    sensor6 = searchFile("sensor6");
-    sensor1pin = searchFile("sensor1pin").toInt();
-    sensor2pin = searchFile("sensor2pin").toInt();
-    sensor3pin = searchFile("sensor3pin").toInt();
-    sensor4pin = searchFile("sensor4pin").toInt();
-    sensor5pin = searchFile("sensor5pin").toInt();
-    sensor6pin = searchFile("sensor6pin").toInt();
     //close the settings file
     config.close();
     //draw a blank logging page here:
@@ -486,17 +562,17 @@ void loop() {
     }
     tft.setTextSize(1);
     tft.setCursor(20, 40); 
-    tft.println(sensor1);
+    tft.println(sensor1monitor);
     tft.setCursor(20, 50); 
-    tft.println(sensor2);
+    tft.println(sensor2monitor);
     tft.setCursor(20, 60); 
-    tft.println(sensor3);
+    tft.println(sensor3monitor);
     tft.setCursor(20, 70); 
-    tft.println(sensor4);
+    tft.println(sensor4monitor);
     tft.setCursor(20, 80);
-    tft.println(sensor5);
+    tft.println(sensor5monitor);
     tft.setCursor(20, 90);
-    tft.println(sensor6);
+    tft.println(sensor6monitor);
 
     //open a new logging file
     long v1, v2, v3, v4, v5, v6;
@@ -508,13 +584,14 @@ void loop() {
     long v6o = 0;
 
     while  (digitalRead(buttonApin) == LOW){ 
-      v1 = getSensorReading(sensor1, sensor1pin);
-      v2 = getSensorReading(sensor2, sensor2pin);
-      v3 = getSensorReading(sensor3, sensor3pin);
-      v4 = getSensorReading(sensor4, sensor4pin);
-      v5 = getSensorReading(sensor5, sensor5pin);
-      v6 = getSensorReading(sensor6, sensor6pin);
-      //show logged stuff
+      v1 = getSensorReading(sensor1monitor, monitorpin1);
+      v2 = getSensorReading(sensor2monitor, monitorpin2);
+      v3 = getSensorReading(sensor3monitor, monitorpin3);
+      v4 = getSensorReading(sensor4monitor, monitorpin4);
+      v5 = getSensorReading(sensor5monitor, monitorpin5);
+      v6 = getSensorReading(sensor6monitor, monitorpin6);
+
+      //destory old stuff
       tft.setTextColor(background);
       tft.setCursor(100,40); 
       tft.println(v1o);
@@ -529,17 +606,61 @@ void loop() {
       tft.setCursor(100,90); 
       tft.println(v6o);
 
-      tft.setTextColor(outline);
+      //test for alert and severe levels
+      //and print new values
+
+      if (v1 >= monitorsevere1){
+        tft.setTextColor(severe);
+      }
+      else if (v1 >= monitoralert1){
+        tft.setTextColor(alert);
+      }
+      else {tft.setTextColor(outline);}
       tft.setCursor(100,40); 
       tft.println(v1);
+      if (v2 >= monitorsevere2){
+        tft.setTextColor(severe);
+      }
+      else if (v2 >= monitoralert2){
+        tft.setTextColor(alert);
+      }
+      else {tft.setTextColor(outline);}
       tft.setCursor(100,50); 
       tft.println(v2);
+      if (v3 >= monitorsevere3){
+        tft.setTextColor(severe);
+      }
+      else if (v3 >= monitoralert3){
+        tft.setTextColor(alert);
+      }
+      else {tft.setTextColor(outline);}
       tft.setCursor(100,60); 
       tft.println(v3);
+      if (v4 >= monitorsevere4){
+        tft.setTextColor(severe);
+      }
+      else if (v4 >= monitoralert4){
+        tft.setTextColor(alert);
+      }
+      else {tft.setTextColor(outline);}      
       tft.setCursor(100,70); 
       tft.println(v4);
+      if (v5 >= monitorsevere5){
+        tft.setTextColor(severe);
+      }
+      else if (v5 >= monitoralert5){
+        tft.setTextColor(alert);
+      }
+      else {tft.setTextColor(outline);}
       tft.setCursor(100,80); 
       tft.println(v5);
+      if (v6 >= monitorsevere6){
+        tft.setTextColor(severe);
+      }
+      else if (v6 >= monitoralert6){
+        tft.setTextColor(alert);
+      }
+      else {tft.setTextColor(outline);}
       tft.setCursor(100,90); 
       tft.println(v6);
 
@@ -577,7 +698,7 @@ void loop() {
         tft.setTextColor(textdefault);
         peaksensor4 = v4;
         tft.setCursor(125,70);
-        tft.println(peaksensor1);
+        tft.println(peaksensor4);
       }      
       if (peaksensor5 < v5){
         tft.setTextColor(background);
@@ -612,6 +733,19 @@ void loop() {
     config = SD.open("gauges");    
   }
 
+}
+
+//called regularly to see if anything went severe...if so jump to the logging page
+boolean monitorSensors(){
+  if ( (getSensorReading(sensor1monitor, monitorpin1) >= monitorsevere1)||(getSensorReading(sensor2monitor, monitorpin2) >= monitorsevere2)||(getSensorReading(sensor3monitor, monitorpin3) >= monitorsevere3)||(getSensorReading(sensor4monitor, monitorpin4) >= monitorsevere4)||(getSensorReading(sensor5monitor, monitorpin5) >= monitorsevere5)||(getSensorReading(sensor6monitor, monitorpin6) >= monitorsevere6) ){
+    tft.fillScreen(severe);
+    tft.setTextSize(3);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    //go to the logging page
+    searchFile("allgauges");
+    return (true);
+  }
 }
 
 long int getOBDIIvalue(String whichSensor){
@@ -1095,6 +1229,8 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
+
 
 
 
