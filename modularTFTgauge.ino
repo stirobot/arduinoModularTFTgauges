@@ -472,24 +472,49 @@ void loop() {
      tft.drawRect(0,44,LCDx,40,outline); 
      tft.drawRect(60,44,40,40,background);//empty the center line
      */
-    tft.setTextColor(textdefault);
+    tft.setTextColor(outline);
     tft.setCursor(0,0);
     tft.println("x:");
     tft.setCursor(110,0);
     tft.println("y:");
-    tft.setCursor(0,100);
+    tft.setCursor(0,120);
     tft.println("px:");
-    tft.setCursor(110,100);
+    tft.setCursor(110,120);
     tft.println("py:"); 
 
+    long xvals[10];
+    long yvals[10];
+    long yindex = 0;
+    long xindex = 0;
+    long ytotal = 0;
+    long xtotal = 0;
+  
     while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
       if (a >=monitorinterval){
         alerting = monitorSensors();
         a = 0;
       }
       a++;
-      xval = getSensorReading(sensor1, sensor1pin);
+      /*xval = getSensorReading(sensor1, sensor1pin);
       yval = getSensorReading(sensor2, sensor2pin);
+      */
+      xtotal=xtotal-xvals[xindex];
+      xvals[xindex]=getSensorReading(sensor1, sensor1pin);
+      xtotal=xtotal+xvals[xindex];
+      xindex++;
+      if (xindex >= 10){
+        xindex=0;
+      } 
+      xval = xtotal/10;  
+      ytotal=ytotal-yvals[yindex];
+      yvals[yindex]=getSensorReading(sensor2, sensor2pin);
+      ytotal=ytotal+yvals[yindex];
+      yindex++;
+      if (yindex >= 10){
+        yindex=0;
+      } 
+      yval = ytotal/10;
+      
       tft.setTextColor(background);
       tft.setCursor(10, 0);
       tft.println((float)xvalold/100);
@@ -504,20 +529,20 @@ void loop() {
       tft.println((float)yval/100);
       if (abs(peaksensor1) < abs(xval)){
         tft.setTextColor(background);
-        tft.setCursor(14,100);
+        tft.setCursor(14,120);
         tft.println((float)peaksensor1/100);
         tft.setTextColor(textdefault);
         peaksensor1 = xval;
-        tft.setCursor(14,100);
+        tft.setCursor(14,120);
         tft.println((float)peaksensor1/100);
       }    
       if (abs(peaksensor2) < abs(yval)){
         tft.setTextColor(background);
-        tft.setCursor(124,100);
+        tft.setCursor(124,120);
         tft.println((float)peaksensor2/100);
         tft.setTextColor(textdefault);
         peaksensor2 = yval;
-        tft.setCursor(124,100);
+        tft.setCursor(124,120);
         tft.println((float)peaksensor2/100);
       }
 
@@ -530,8 +555,7 @@ void loop() {
       //1 ball...uniball...oneballin...
       tft.fillCircle(80-(float)80/120*xvalold,64+(float)64/120*yvalold,10,background);//oldball
       tft.fillCircle(80-(float)80/120*xval,64+(float)64/120*yval,10,fill);//newball
-
-
+      
       xvalold = xval;
       yvalold = yval;
     }
@@ -997,13 +1021,27 @@ int lookup_fake_random_sensor(int max){
 int getAccelerometerData (int axis){
   int zerog = 512;
   int rc = analogRead(axis);
-  Serial.println(axis);
-  Serial.println(rc);
   int top =( (zerog - rc) ) ; 
   float frtrn = (((float)top/(float)158)*100);  //158Vint jumps are 1g for the ADXL213AE (original accel)
   //154Vint jumps are 1g for the ADXL322 (updated one)
   int rtrn = (int)frtrn;
   return rtrn;
+}
+
+//from the arudino playground: http://playground.arduino.cc/Main/Smooth by Paul 
+int smooth(int data, float filterVal, float smoothedVal){
+
+
+  if (filterVal > 1){      // check to make sure param's are within range
+    filterVal = .99;
+  }
+  else if (filterVal <= 0){
+    filterVal = 0;
+  }
+
+  smoothedVal = (data * (1 - filterVal)) + (smoothedVal  *  filterVal);
+
+  return (int)smoothedVal;
 }
 
 //oil temp
