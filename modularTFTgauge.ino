@@ -13,9 +13,6 @@
  short:
  -logging done properly to file
  -background testing of all sensors with "popup" alerting
- -these sensors will be the same as the ones used for the logging page
- -make jump to logging page with highlighting on over alerts
- -make 2 levels of alert (alert = low, sever = high)
  -mess with accelerometer display to have trails and other nonsense
  -debug obd II stuffs
  long:
@@ -23,7 +20,7 @@
  -make graphics scalable to the 2.2" tft spi monitors
  -code cleanup
  -more error catching
- -use arrays instead of individual variables
+ -use arrays instead of individual variables...this will clean up the code and might make stuff go faster
  -make shit fucking awesome
  */
 
@@ -157,7 +154,7 @@ void setup() {
   monitorsevere4 = searchFile("sensor4severe").toInt();
   monitorsevere5 = searchFile("sensor5severe").toInt();
   monitorsevere6 = searchFile("sensor6severe").toInt();
-  
+
   config.close();
   config = SD.open("gauges");
   //blank screen
@@ -182,8 +179,9 @@ void loop() {
   //read config file for next page
   String pagetype = searchFile("pagetype");
   Serial.println(pagetype);
-  int a = 0;
   if (pagetype.indexOf("twobar") >= 0){//2 sensors displayed in 2 bar charts
+    int a = 0;
+    alerting = false;
     peaksensor1 = 0;
     peaksensor2 = 0;
     sensor1 = searchFile("sensor1");
@@ -309,7 +307,10 @@ void loop() {
     }
   }
 
+
   else if (pagetype.indexOf("onebar") >=0){//1 sensor 1 bar chart...bigger fonts
+    int a = 0;
+    alerting = false;
     Serial.println("onebar");
     peaksensor1 = 0;
     sensor1 = searchFile("sensor1");
@@ -384,6 +385,8 @@ void loop() {
   }
 
   else if (pagetype.indexOf("round") >= 0){
+    int a = 0;
+    alerting = false;
     peaksensor1 = 0;
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();
@@ -402,12 +405,13 @@ void loop() {
     uint16_t barColor;
     int angle = 0;
     float rad = 0;
-    while  ((digitalRead(buttonApin) == LOW) || (alerting == false)){
+    while  ((digitalRead(buttonApin) == LOW) && (alerting == false)){
       if (a >=monitorinterval){
         alerting = monitorSensors();
         a = 0;
       }
-      a++;      val = getSensorReading(sensor1, sensor1pin);
+      a++;      
+      val = getSensorReading(sensor1, sensor1pin);
       tft.setTextSize(2);
       tft.setCursor(64,60);
       tft.setTextColor(background);
@@ -449,7 +453,10 @@ void loop() {
     }
   }
 
-  if (pagetype.indexOf("accel") >= 0){//cross bar type chart for accelerometer
+
+  else if (pagetype.indexOf("accel") >= 0){//cross bar type chart for accelerometer
+    int a = 0;
+    alerting = false;
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();    
     sensor2 = searchFile("sensor2");
@@ -465,6 +472,7 @@ void loop() {
      tft.drawRect(0,44,LCDx,40,outline); 
      tft.drawRect(60,44,40,40,background);//empty the center line
      */
+    tft.setTextColor(textdefault);
     tft.setCursor(0,0);
     tft.println("x:");
     tft.setCursor(110,0);
@@ -524,13 +532,14 @@ void loop() {
       tft.fillCircle(80-(float)80/120*xval,64+(float)64/120*yval,10,fill);//newball
 
 
-        xvalold = xval;
+      xvalold = xval;
       yvalold = yval;
     }
   }
 
   else if (pagetype.indexOf("logging") >= 0){//up to 4 sensors shown...log everything to file
     bool logging = true;
+    alerting = false;
     int ct = 0;
     while ((digitalRead(buttonApin) == HIGH)){
     }
@@ -615,7 +624,9 @@ void loop() {
       else if (v1 >= monitoralert1){
         tft.setTextColor(alert);
       }
-      else {tft.setTextColor(outline);}
+      else {
+        tft.setTextColor(outline);
+      }
       tft.setCursor(100,40); 
       tft.println(v1);
       if (v2 >= monitorsevere2){
@@ -624,7 +635,9 @@ void loop() {
       else if (v2 >= monitoralert2){
         tft.setTextColor(alert);
       }
-      else {tft.setTextColor(outline);}
+      else {
+        tft.setTextColor(outline);
+      }
       tft.setCursor(100,50); 
       tft.println(v2);
       if (v3 >= monitorsevere3){
@@ -633,7 +646,9 @@ void loop() {
       else if (v3 >= monitoralert3){
         tft.setTextColor(alert);
       }
-      else {tft.setTextColor(outline);}
+      else {
+        tft.setTextColor(outline);
+      }
       tft.setCursor(100,60); 
       tft.println(v3);
       if (v4 >= monitorsevere4){
@@ -642,7 +657,9 @@ void loop() {
       else if (v4 >= monitoralert4){
         tft.setTextColor(alert);
       }
-      else {tft.setTextColor(outline);}      
+      else {
+        tft.setTextColor(outline);
+      }      
       tft.setCursor(100,70); 
       tft.println(v4);
       if (v5 >= monitorsevere5){
@@ -651,7 +668,9 @@ void loop() {
       else if (v5 >= monitoralert5){
         tft.setTextColor(alert);
       }
-      else {tft.setTextColor(outline);}
+      else {
+        tft.setTextColor(outline);
+      }
       tft.setCursor(100,80); 
       tft.println(v5);
       if (v6 >= monitorsevere6){
@@ -660,7 +679,9 @@ void loop() {
       else if (v6 >= monitoralert6){
         tft.setTextColor(alert);
       }
-      else {tft.setTextColor(outline);}
+      else {
+        tft.setTextColor(outline);
+      }
       tft.setCursor(100,90); 
       tft.println(v6);
 
@@ -742,10 +763,17 @@ boolean monitorSensors(){
     tft.setTextSize(3);
     tft.setCursor(0, 20);
     tft.println("WARNING!");
+    delay(1000);
+    tft.fillScreen(severe);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    delay(1000);
+    Serial.println("WARNING!");
     //go to the logging page
     searchFile("allgauges");
     return (true);
   }
+  else return false;
 }
 
 long int getOBDIIvalue(String whichSensor){
@@ -960,8 +988,8 @@ int lookup_fake_random_sensor(int max){
   if (fakeSensor < 0){
     fakeSensor = 1;
   }
-  Serial.println("lookup_fake_random_sensor");
-  Serial.println(fakeSensor);
+ // Serial.println("lookup_fake_random_sensor");
+ // Serial.println(fakeSensor);
   return fakeSensor;
 }
 
@@ -1229,6 +1257,7 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
 
 
 
