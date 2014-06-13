@@ -461,7 +461,9 @@ void loop() {
     sensor1pin = searchFile("sensor1pin").toInt();    
     sensor2 = searchFile("sensor2");
     sensor2pin = searchFile("sensor2pin").toInt();
-    long xval, yval;
+    //long xval, yval;
+    long xval = 0;
+    long yval = 0;
     long xvalold = 0;
     long yvalold = 0;
     long xpeak = 0; 
@@ -481,13 +483,6 @@ void loop() {
     tft.println("px:");
     tft.setCursor(110,120);
     tft.println("py:"); 
-
-    long xvals[10];
-    long yvals[10];
-    long yindex = 0;
-    long xindex = 0;
-    long ytotal = 0;
-    long xtotal = 0;
   
     while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
       if (a >=monitorinterval){
@@ -498,23 +493,9 @@ void loop() {
       /*xval = getSensorReading(sensor1, sensor1pin);
       yval = getSensorReading(sensor2, sensor2pin);
       */
-      xtotal=xtotal-xvals[xindex];
-      xvals[xindex]=getSensorReading(sensor1, sensor1pin);
-      xtotal=xtotal+xvals[xindex];
-      xindex++;
-      if (xindex >= 10){
-        xindex=0;
-      } 
-      xval = xtotal/10;  
-      ytotal=ytotal-yvals[yindex];
-      yvals[yindex]=getSensorReading(sensor2, sensor2pin);
-      ytotal=ytotal+yvals[yindex];
-      yindex++;
-      if (yindex >= 10){
-        yindex=0;
-      } 
-      yval = ytotal/10;
-      
+      xval = (xval *6+getSensorReading(sensor1, sensor1pin))/7;
+      yval = (yval *6+getSensorReading(sensor2, sensor2pin))/7;
+
       tft.setTextColor(background);
       tft.setCursor(10, 0);
       tft.println((float)xvalold/100);
@@ -527,23 +508,23 @@ void loop() {
       tft.setTextColor(textdefault);
       tft.setCursor(120, 0);
       tft.println((float)yval/100);
-      if (abs(peaksensor1) < abs(xval)){
+      if (abs(xpeak) <= abs(xval)){
         tft.setTextColor(background);
         tft.setCursor(14,120);
-        tft.println((float)peaksensor1/100);
+        tft.println((float)xpeak/100);
         tft.setTextColor(textdefault);
-        peaksensor1 = xval;
+        xpeak = xval;
         tft.setCursor(14,120);
-        tft.println((float)peaksensor1/100);
+        tft.println((float)xpeak/100);
       }    
-      if (abs(peaksensor2) < abs(yval)){
+      if (abs(ypeak) <= abs(yval)){
         tft.setTextColor(background);
         tft.setCursor(124,120);
-        tft.println((float)peaksensor2/100);
+        tft.println((float)ypeak/100);
         tft.setTextColor(textdefault);
-        peaksensor2 = yval;
+        ypeak = yval;
         tft.setCursor(124,120);
-        tft.println((float)peaksensor2/100);
+        tft.println((float)ypeak/100);
       }
 
       /*tft.fillCircle(80-(float)80/120*xvalold,64,5,background); //x old ball
@@ -1022,7 +1003,7 @@ int getAccelerometerData (int axis){
   int zerog = 512;
   int rc = analogRead(axis);
   int top =( (zerog - rc) ) ; 
-  float frtrn = (((float)top/(float)158)*100);  //158Vint jumps are 1g for the ADXL213AE (original accel)
+  float frtrn = (((float)top/(float)154)*100);  //158Vint jumps are 1g for the ADXL213AE (original accel)
   //154Vint jumps are 1g for the ADXL322 (updated one)
   int rtrn = (int)frtrn;
   return rtrn;
