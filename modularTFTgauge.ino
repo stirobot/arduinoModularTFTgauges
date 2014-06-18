@@ -12,7 +12,6 @@
 /* TODO's
  short:
  -logging done properly to file
- -background testing of all sensors with "popup" alerting
  -mess with accelerometer display to have trails and other nonsense
  -debug obd II stuffs
  long:
@@ -84,7 +83,7 @@ uint16_t alert = ST7735_YELLOW;
 uint16_t severe = ST7735_YELLOW;
 
 //This is a character buffer that will store the data from the serial port
-char rxData[30];
+char rxData[20];
 char rxIndex=0;
 
 String sensor1monitor, sensor2monitor, sensor3monitor, sensor4monitor, sensor5monitor, sensor6monitor;
@@ -159,7 +158,10 @@ void setup() {
   config = SD.open("gauges");
   //blank screen
   delay(2000);
-  Serial1.println("ATZ");
+  Serial1.println("ATZ"); //begin OBDII UART
+  getResponse();
+  Serial1.println("ATE0"); //echo off
+  getResponse();
   delay(2000);
   Serial1.flush();
   pinMode(buttonApin, INPUT);
@@ -782,92 +784,94 @@ boolean monitorSensors(){
 }
 
 long int getOBDIIvalue(String whichSensor){
+  Serial1.flush();
   long int value = 0;
   if (whichSensor.indexOf("obdspeedkph") >= 0){
     Serial1.println("010D"); //mode 1 0D PID
-    getResponse();  //command echoed
+    //getResponse();  //command echoed
     getResponse();  //value
     value = strtol(&rxData[6],0,16) ; //convert the string to integer
   }
   if (whichSensor.indexOf("obdspeedmph") >= 0){
     Serial1.println("010D"); //mode 1 0D PID
-    getResponse();  //command echoed
+    //getResponse();  //command echoed
     getResponse();  //value
     value = strtol(&rxData[6],0,16)/1.6 ; //convert the string to integer
   }  
   if (whichSensor.indexOf("obdrpms") >= 0){
     Serial1.println("010C"); //mode 1 0C PID (rpm)
-    getResponse();  //command echoed
+    //Serial.println("getting rpm");
+    //getResponse();  //command echoed
     getResponse();  //value
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
+    //Serial.println("rpm =");
+    //Serial.println(value);
   }
   if (whichSensor.indexOf("obdcoolant") >=0){
     Serial1.println("O1O5");
-    getResponse();
+    //getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16))-4; //aka A-40
   }
   if (whichSensor.indexOf("obdboost") >= 0){
     Serial1.println("0265"); //intake manifold abs pressure
-    getResponse();
+    //getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A
   }  
   if (whichSensor.indexOf("obdiat") >= 0){
     Serial1.println("O1OF");
-    getResponse();
+    //getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A-40
   }
-  if (whichSensor.indexOf("obdcoolant") >=0 ){
-    Serial1.println("O1O5");
-    getResponse();
-    getResponse();
-    value = (strtol(&rxData[6],0,16))-4; //aka A-40
-  }
   if (whichSensor.indexOf("obdmaf") >= 0){
     Serial1.println("0110");
-    getResponse();
+    //getResponse();
     getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/100; //aka ((A*256)+B)/100
   }
   if (whichSensor.indexOf("obdvolts") >= 0){
     Serial1.println("0142");
-    getResponse();
+    //Serial.println("getting volts");
+    //getResponse();
     getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
+    //Serial.println("volts is:");
+    //Serial.println(value);
   }
-  if (whichSensor.indexOf("obdoiltempC") >= 0){
+  if (whichSensor.indexOf("obdoiltempf") >= 0){
     Serial1.println("015C");
-    getResponse();
+    //getResponse();
     getResponse();
     value = strtol(&rxData[6],0,16)-40; //aka (A-40)
   }
-  if (whichSensor.indexOf("obdoiltempc") >= 0){
+  if (whichSensor.indexOf("obdoiltempf") >= 0){
     Serial1.println("015C");
-    getResponse();
+    //getResponse();
     getResponse();
     value = (strtol(&rxData[6],0,16)-40)*1.8; //aka (A-40)
   }
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
     Serial1.println("0110");
-    getResponse();
+    //getResponse();
     getResponse();
     value = ( strtol(&rxData[93],0,16) ) - 40; //29th byte - 40 (?)
   }
   if (whichSensor.indexOf("obdbrzoiltempf") >= 0){
     Serial1.println("0110");
-    getResponse();
+    //getResponse();
     getResponse();
     value = ( (strtol(&rxData[93],0,16) ) - 40) * 1.8; //29th byte - 40 (?)
   }
-  Serial1.flush();
+  delay(100);
   return value;
 }
 
 int getSensorReading(String sensorName, int pinNumber){
   //if the pin number is 0 it is obd II...look it up with the obd II lib
   if (pinNumber == 0){
+    Serial.println("getting OBDII value");
     return(getOBDIIvalue(sensorName));  
   }
   //else call the appropriate Analog to digital conversion function on the appropirate pin
@@ -900,35 +904,22 @@ int getSensorReading(String sensorName, int pinNumber){
   }
 }
 
-//the following function is from the sparkfun example code: https://github.com/sparkfun/OBD-II_UART/blob/master/Firmware/obdIIUartQuickstart.ino
-//The getResponse function collects incoming data from the UART into the rxData buffer
-// and only exits when a carriage return character is seen. Once the carriage return
-// string is detected, the rxData buffer is null terminated (so we can treat it as a string)
-// and the rxData index is reset to 0 so that the next string can be copied.
+
+//from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
 void getResponse(void){
-  char inChar=0;
-  //Keep reading characters until we get a carriage return
-  while(inChar != '\r'){
-    //If a character comes in on the serial port, we need to act on it.
-    if(Serial.available() > 0){
-      //Start by checking if we've received the end of message character ('\r').
-      if(Serial.peek() == '\r'){
-        //Clear the Serial buffer
-        inChar=Serial.read();
-        //Put the end of string character on our data string
-        rxData[rxIndex]='\0';
-        //Reset the buffer index so that the next character goes back at the beginning of the string.
-        rxIndex=0;
-      }
-      //If we didn't get the end of message character, just add the new character to the string.
-      else{
-        //Get the new character from the Serial port.
-        inChar = Serial.read();
-        //Add the new character to the string, and increment the index variable.
-        rxData[rxIndex++]=inChar;
-      }
-    }
-  }
+  char c;
+      do {
+        if (Serial1.available() > 0)
+        {
+          c = Serial1.read();
+          if ((c != '>') && (c != '\r') && (c != '\n')) //Keep these out of our buffer
+          {
+            rxData[rxIndex++] = c; //Add whatever we receive to the buffer
+          }
+        }
+      } while (c != '>'); //The ELM327 ends its response with this char so when we get it we exit out.
+      rxData[rxIndex++] = '\0';  //Converts the array into a string
+      rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
 }
 
 
