@@ -867,23 +867,30 @@ long int getOBDIIvalue(String whichSensor){
   
   //nonstandard/experiemental PIDs
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
-    Serial1.println("07E02101"); //gives "NO DATA"
+    Serial1.println("AT SH 7E0");
+    Serial1.println("2101");    
     getResponse();
-    value = ( strtol(&rxData[93],0,16) ) - 40; //29th byte - 40 (?)
+    Serial1.println("AT D");
+    Serial1.println("AT E0");
+    value = ( strtol(&rxData[100],0,16) ) - 40; //29th byte - 40 (?)
   }
   if (whichSensor.indexOf("obdbrzoiltempf") >= 0){
     Serial1.println("AT SH 7E0");
     Serial1.println("2101");
     getResponse();
+    Serial1.println("AT D");
+    Serial1.println("AT E0");
     Serial.println("brz oil temp");
-    Serial.println("");
-    value = ( (strtol(&rxData[93],0,16) ) - 40) * 1.8; //29th byte - 40 (?)
+    value = ( (strtol(&rxData[100],0,16) ) - 40) * 1.8 + 32; //29th byte - 40 (?)
     Serial.println(value);
   }
   if (whichSensor.indexOf("obdbrzfuelleft") >= 0){
     Serial.println("brz fuel left");
-    Serial1.println("07C2129"); //gives "NO DATA"
+    Serial1.println("AT SH 7C0");
+    Serial1.println("2129");    
     getResponse();
+    Serial1.println("AT D");
+    Serial1.println("AT E0");
     value = ((float)strtol(&rxData[6],0,16)*13.2)/100; // (A*13.2)/100
     Serial.println(value);
   }
