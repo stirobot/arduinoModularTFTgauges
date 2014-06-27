@@ -85,7 +85,7 @@ uint16_t alert = ST7735_YELLOW;
 uint16_t severe = ST7735_YELLOW;
 
 //This is a character buffer that will store the data from the serial port
-char rxData[40];
+char rxData[90];
 char rxIndex=0;
 
 String sensor1monitor, sensor2monitor, sensor3monitor, sensor4monitor, sensor5monitor, sensor6monitor;
@@ -94,6 +94,8 @@ int monitoralert1, monitoralert2, monitoralert3, monitoralert4, monitoralert5, m
 int monitorsevere1, monitorsevere2, monitorsevere3, monitorsevere4, monitorsevere5, monitorsevere6;
 int monitorinterval = 30;
 boolean alerting = false;
+int a = 0;
+
 
 void setup() {
   //read some basic settings from the SD card
@@ -164,6 +166,8 @@ void setup() {
   getResponse();
   Serial1.println("ATE0"); //echo off
   getResponse();
+  Serial1.println("AT SH 7E0");
+  getResponse();
   delay(2000);
   Serial1.flush();
   pinMode(buttonApin, INPUT);
@@ -184,7 +188,6 @@ void loop() {
   String pagetype = searchFile("pagetype");
   Serial.println(pagetype);
   if (pagetype.indexOf("twobar") >= 0){//2 sensors displayed in 2 bar charts
-    int a = 0;
     alerting = false;
     peaksensor1 = 0;
     peaksensor2 = 0;
@@ -222,12 +225,9 @@ void loop() {
     uint16_t barColor1;
     uint16_t barColor2;
     Serial.println("twobar init done");
-    while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
-      if (a >=monitorinterval){
-        alerting = monitorSensors();
-        a = 0;
-      }
-      a++;
+    while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){  
+      alerting = monitorSensors();
+
       Serial.println(buttonApin);
       val1 = getSensorReading(sensor1, sensor1pin);
       val2 = getSensorReading(sensor2, sensor2pin);
@@ -313,7 +313,6 @@ void loop() {
 
 
   else if (pagetype.indexOf("onebar") >=0){//1 sensor 1 bar chart...bigger fonts
-    int a = 0;
     alerting = false;
     Serial.println("onebar");
     peaksensor1 = 0;
@@ -338,11 +337,7 @@ void loop() {
     uint16_t barColor;
     //loop to show the display and check for the button press
     while  ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){ 
-      if (a >=monitorinterval){
-        alerting = monitorSensors();
-        a = 0;
-      }
-      a++;
+      alerting = monitorSensors();
       //get value
       val = getSensorReading(sensor1, sensor1pin);
       //write value
@@ -389,7 +384,6 @@ void loop() {
   }
 
   else if (pagetype.indexOf("round") >= 0){
-    int a = 0;
     alerting = false;
     peaksensor1 = 0;
     sensor1 = searchFile("sensor1");
@@ -410,11 +404,8 @@ void loop() {
     int angle = 0;
     float rad = 0;
     while  ((digitalRead(buttonApin) == LOW) && (alerting == false)){
-      if (a >=monitorinterval){
-        alerting = monitorSensors();
-        a = 0;
-      }
-      a++;      
+      alerting = monitorSensors();
+
       val = getSensorReading(sensor1, sensor1pin);
       tft.setTextSize(2);
       tft.setCursor(64,60);
@@ -459,7 +450,6 @@ void loop() {
 
 
   else if (pagetype.indexOf("accel") >= 0){//cross bar type chart for accelerometer
-    int a = 0;
     alerting = false;
     sensor1 = searchFile("sensor1");
     sensor1pin = searchFile("sensor1pin").toInt();    
@@ -487,16 +477,13 @@ void loop() {
     tft.println("px:");
     tft.setCursor(110,120);
     tft.println("py:"); 
-  
+
     while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
-      if (a >=monitorinterval){
-        alerting = monitorSensors();
-        a = 0;
-      }
-      a++;
+      alerting = monitorSensors();
+
       /*xval = getSensorReading(sensor1, sensor1pin);
-      yval = getSensorReading(sensor2, sensor2pin);
-      */
+       yval = getSensorReading(sensor2, sensor2pin);
+       */
       xval = (xval *6+getSensorReading(sensor1, sensor1pin))/7;
       yval = (yval *6+getSensorReading(sensor2, sensor2pin))/7;
 
@@ -540,8 +527,8 @@ void loop() {
       //1 ball...uniball...oneballin...
       tft.fillCircle(80-(float)80/120*xvalold,64+(float)64/120*yvalold,10,background);//oldball
       tft.fillCircle(80-(float)80/120*xval,64+(float)64/120*yval,10,fill);//newball
-      
-      xvalold = xval;
+
+        xvalold = xval;
       yvalold = yval;
     }
   }
@@ -767,36 +754,87 @@ void loop() {
 
 //called regularly to see if anything went severe...if so jump to the logging page
 boolean monitorSensors(){
-  if ( (getSensorReading(sensor1monitor, monitorpin1) >= monitorsevere1)||(getSensorReading(sensor2monitor, monitorpin2) >= monitorsevere2)||(getSensorReading(sensor3monitor, monitorpin3) >= monitorsevere3)||(getSensorReading(sensor4monitor, monitorpin4) >= monitorsevere4)||(getSensorReading(sensor5monitor, monitorpin5) >= monitorsevere5)||(getSensorReading(sensor6monitor, monitorpin6) >= monitorsevere6) ){
-    tft.fillScreen(severe);
+  a++;
+  if ((a == 1) && (getSensorReading(sensor1monitor, monitorpin1) >= monitorsevere1)){
     tft.setTextSize(3);
-    tft.setCursor(0, 20);
-    tft.println("WARNING!");
-    delay(1000);
     tft.fillScreen(severe);
     tft.setCursor(0, 20);
     tft.println("WARNING!");
     delay(1000);
-    Serial.println("WARNING!");
     //go to the logging page
     searchFile("allgauges");
     return (true);
   }
+  else if ((a == monitorinterval) && (getSensorReading(sensor2monitor, monitorpin2) >= monitorsevere2)){
+    tft.setTextSize(3);
+    tft.fillScreen(severe);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    delay(1000);
+    //go to the logging page
+    searchFile("allgauges");
+    return (true);
+  }
+  else if ((a == monitorinterval*2) && (getSensorReading(sensor3monitor, monitorpin3) >= monitorsevere3)){
+    tft.setTextSize(3);
+    tft.fillScreen(severe);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    delay(1000);
+    //go to the logging page
+    searchFile("allgauges");
+    return (true);
+  }
+  else if ((a == monitorinterval*3) && (getSensorReading(sensor4monitor, monitorpin4) >= monitorsevere4)){
+    tft.setTextSize(3);
+    tft.fillScreen(severe);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    delay(1000);
+    //go to the logging page
+    searchFile("allgauges");
+    return (true);
+  }
+  else if ((a == monitorinterval*4) && (getSensorReading(sensor5monitor, monitorpin5) >= monitorsevere5)){
+    tft.setTextSize(3);
+    tft.fillScreen(severe);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    delay(1000);
+    //go to the logging page
+    searchFile("allgauges");
+    return (true);
+  }
+  else if ((a == monitorinterval*5) && (getSensorReading(sensor6monitor, monitorpin6) >= monitorsevere6)){
+    tft.setTextSize(3);
+    tft.fillScreen(severe);
+    tft.setCursor(0, 20);
+    tft.println("WARNING!");
+    delay(1000);
+    //go to the logging page
+    searchFile("allgauges");
+    return (true);
+  }
+  if (a >= monitorinterval*5){
+    a = 0;
+    return false;
+  }
   else return false;
+  //return false;  //for testing you could just return false and not worry about checking everything
 }
 
 long int getOBDIIvalue(String whichSensor){
   /*what is working:
-  speed - works 
-  rpms - works 
-  coolant - reads in F as 10 and nothing else
-  boost - can't test yet
-  iat and maf - can't tell/don't really care
-  volts - works (maybe add decimal?)
-  oiltemp(f/c) - haven't tested (shouldn't work on many cars)
-  brz oil temp - in F shows -72 and nothing else
-  brz fuel left - shows 1 and nothing else
-  */
+   speed - works 
+   rpms - works 
+   coolant - reads in F as 10 and nothing else
+   boost - can't test yet
+   iat and maf - can't tell/don't really care
+   volts - works (maybe add decimal?)
+   oiltemp(f/c) - haven't tested (shouldn't work on many cars)
+   brz oil temp - in F shows -72 and nothing else
+   brz fuel left - shows 1 and nothing else
+   */
   Serial1.flush();
   long int value = 0;
   if (whichSensor.indexOf("obdspeedkph") >= 0){
@@ -864,22 +902,22 @@ long int getOBDIIvalue(String whichSensor){
     getResponse();
     value = (strtol(&rxData[6],0,16)-40)*1.8+32; //aka (A-40) *1.8
   }
-  
+
   //nonstandard/experiemental PIDs
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
     Serial1.println("AT SH 7E0");
     Serial1.println("2101");    
     getResponse();
-    Serial1.println("AT D");
-    Serial1.println("AT E0");
+    //Serial1.println("AT D");
+    //Serial1.println("AT E0");
     value = ( strtol(&rxData[100],0,16) ) - 40; //29th byte - 40 (?)
   }
   if (whichSensor.indexOf("obdbrzoiltempf") >= 0){
-    Serial1.println("AT SH 7E0");
+    //Serial1.println("AT SH 7E0");
     Serial1.println("2101");
     getResponse();
-    Serial1.println("AT D");
-    Serial1.println("AT E0");
+    //Serial1.println("AT D");  //won't work well with parsing will need a fix
+    //Serial1.println("AT E0");
     Serial.println("brz oil temp");
     value = ( (strtol(&rxData[100],0,16) ) - 40) * 1.8 + 32; //29th byte - 40 (?)
     Serial.println(value);
@@ -889,12 +927,12 @@ long int getOBDIIvalue(String whichSensor){
     Serial1.println("AT SH 7C0");
     Serial1.println("2129");    
     getResponse();
-    Serial1.println("AT D");
-    Serial1.println("AT E0");
+    //Serial1.println("AT D");
+    //Serial1.println("AT E0");
     value = ((float)strtol(&rxData[6],0,16)*13.2)/100; // (A*13.2)/100
     Serial.println(value);
   }
-  //delay(100);
+  delay(100);
   return value;
 }
 
@@ -938,20 +976,21 @@ int getSensorReading(String sensorName, int pinNumber){
 //from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
 void getResponse(void){
   char c;
-      do {
-        if (Serial1.available() > 0)
-        {
-          c = Serial1.read();
-          if ((c != '>') && (c != '\r') && (c != '\n')) //Keep these out of our buffer
-          {
-            rxData[rxIndex++] = c; //Add whatever we receive to the buffer
-          }
-        }
-      } while (c != '>'); //The ELM327 ends its response with this char so when we get it we exit out.
-      rxData[rxIndex++] = '\0';  //Converts the array into a string
-      Serial.print("rxData: ");
-      Serial.println(rxData);
-      rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
+  do {
+    if (Serial1.available() > 0)
+    {
+      c = Serial1.read();
+      if ((c != '>') && (c != '\r') && (c != '\n')) //Keep these out of our buffer
+      {
+        rxData[rxIndex++] = c; //Add whatever we receive to the buffer
+      }
+    }
+  } 
+  while (c != '>'); //The ELM327 ends its response with this char so when we get it we exit out.
+  rxData[rxIndex++] = '\0';  //Converts the array into a string
+  Serial.print("rxData: ");
+  Serial.println(rxData);
+  rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
 }
 
 
@@ -1016,8 +1055,8 @@ int lookup_fake_random_sensor(int max){
   if (fakeSensor < 0){
     fakeSensor = 1;
   }
- // Serial.println("lookup_fake_random_sensor");
- // Serial.println(fakeSensor);
+  // Serial.println("lookup_fake_random_sensor");
+  // Serial.println(fakeSensor);
   return fakeSensor;
 }
 
@@ -1299,6 +1338,7 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
 
 
 
