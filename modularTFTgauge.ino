@@ -15,7 +15,6 @@
  -debug obd II stuffs
  -fix 0 glitch on bar charts
  -make check for obd II and if it isn't there then don't freeze up
- -make the check all sensors in the background spread out so that there is no noticeable freeze on the U
  long:
  -find an elegant solution to negative warnings (oil pressure)
  -make graphics scalable to the 2.2" tft spi monitors
@@ -166,7 +165,7 @@ void setup() {
   getResponse();
   Serial1.println("ATE0"); //echo off
   getResponse();
-  Serial1.println("AT SH 7E0");
+  Serial1.println("AT SH 7E0"); //header specific to the brz oil temp reading
   getResponse();
   delay(2000);
   Serial1.flush();
@@ -907,30 +906,27 @@ long int getOBDIIvalue(String whichSensor){
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
     Serial1.println("AT SH 7E0");
     Serial1.println("2101");    
-    getResponse();
-    //Serial1.println("AT D");
-    //Serial1.println("AT E0");
-    value = ( strtol(&rxData[100],0,16) ) - 40; //29th byte - 40 (?)
+    value = ( getResponseCAN('4', 11)) - 40; //29th byte - 40 (?)
+    Serial1.println("AT D");
+    Serial1.println("AT E0");  
   }
   if (whichSensor.indexOf("obdbrzoiltempf") >= 0){
     //Serial1.println("AT SH 7E0");
     Serial1.println("2101");
-    getResponse();
-    //Serial1.println("AT D");  //won't work well with parsing will need a fix
-    //Serial1.println("AT E0");
     Serial.println("brz oil temp");
-    value = ( (strtol(&rxData[100],0,16) ) - 40) * 1.8 + 32; //29th byte - 40 (?)
+    value = ( (getResponseCAN('4', 11) ) - 40) * 1.8 + 32; //29th byte - 40 (?)
     Serial.println(value);
+    Serial1.println("AT D");
+    Serial1.println("AT E0");
   }
   if (whichSensor.indexOf("obdbrzfuelleft") >= 0){
     Serial.println("brz fuel left");
     Serial1.println("AT SH 7C0");
     Serial1.println("2129");    
-    getResponse();
-    //Serial1.println("AT D");
-    //Serial1.println("AT E0");
     value = ((float)strtol(&rxData[6],0,16)*13.2)/100; // (A*13.2)/100
     Serial.println(value);
+    Serial1.println("AT D");
+    Serial1.println("AT E0");
   }
   delay(100);
   return value;
@@ -991,6 +987,40 @@ void getResponse(void){
   Serial.print("rxData: ");
   Serial.println(rxData);
   rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
+}
+
+//Because the CAN responses can be interspersed with crap (like OK messages)
+//Also need to linger until the the desired data comes in before switching back to normal OBD II headers
+int getResponseCAN(char stanza, int pos){
+  char c;
+  do {
+    if (Serial1.available() > 0)
+    //read until we get to the "stanza" that contains the target data
+     {
+      c = Serial1.read();
+      if ((c != '>') && (c != '\r') && (c != '\n') && (c != 'O') && (c != 'K')) //Keep these out of our buffer
+      {
+        rxData[rxIndex++] = c; //Add whatever we receive to the buffer
+      }
+    } 
+  } while ((rxData[rxIndex] == ':') && (rxData[rxIndex-1] == stanza)); //looking for the character of the stanza number and the colon which indicates a stanza
+  //read to the X position after that stanza
+  for (int z = 1; z <= pos; z++){
+    if (Serial1.available() > 0)
+     {
+      c = Serial1.read();
+      if ((c != '>') && (c != '\r') && (c != '\n') && (c != 'O') && (c != 'K')) //Keep these out of our buffer
+      {
+        rxData[rxIndex++] = c; //Add whatever we receive to the buffer
+      }
+    } 
+  }
+  rxData[rxIndex++] = '\0';  //Converts the array into a string
+  Serial.print("rxDataCAN: ");
+  Serial.println(rxData);
+  //pull the last two items off the array and convert the hex to int to get a reading
+  return ( strtol(&rxData[rxIndex-1],0,16) );
+  rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer"
 }
 
 
