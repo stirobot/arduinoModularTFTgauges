@@ -98,7 +98,7 @@ int a = 0;
 
 void setup() {
   //read some basic settings from the SD card
-  Serial.begin(9600); //debugging to serial console
+  Serial.begin(9600); 
   tft.initR(INITR_BLACKTAB);
   tft.fillScreen(background);
   tft.setRotation(1);
@@ -159,18 +159,21 @@ void setup() {
 
   config.close();
   config = SD.open("gauges");
-  //blank screen
   delay(2000);
   Serial1.println("ATZ"); //begin OBDII UART
   getResponse();
-  Serial1.println("ATDP");//tell which protocol...the brz is ATDPAUTO, ISO 15765-4 (CAN 11/500)
-  getResponse();
-  Serial1.println("ATDPN");//number of the protocol
-  getResponse();
+ // Serial1.println("ATDP");//tell which protocol...the brz is ATDPAUTO, ISO 15765-4 (CAN 11/500)
+ // getResponse();
+ // Serial1.println("ATDPN");//number of the protocol
+ // getResponse();
+  Serial1.flush();
+  delay(100);
   Serial1.println("ATE0"); //echo off
   getResponse();
-  //Serial1.println("AT SH 7E0"); //header specific to the brz oil temp reading
-  //getResponse();
+  Serial1.flush();
+  delay(100);
+  Serial1.println("AT SH 7E0"); //header specific to the brz oil temp reading
+  getResponse(); //won't work because of "OK" ?
   /*Serial1.println("0-20");
   Serial1.println("0100");  //what pids are supported 01-20
   getResponse();
@@ -184,7 +187,7 @@ void setup() {
   Serial1.println("0160"); //60-80
   getResponse();*/
   delay(2000);
-  Serial1.flush();
+  Serial1.flush();  //TRY THIS on and off
   pinMode(buttonApin, INPUT);
   Serial.println("end of setup");
   tft.fillScreen(background);
@@ -241,7 +244,7 @@ void loop() {
     uint16_t barColor2;
     Serial.println("twobar init done");
     while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){  
-      alerting = monitorSensors();
+      //alerting = monitorSensors();
 
       Serial.println(buttonApin);
       val1 = getSensorReading(sensor1, sensor1pin);
@@ -352,7 +355,7 @@ void loop() {
     uint16_t barColor;
     //loop to show the display and check for the button press
     while  ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){ 
-      alerting = monitorSensors();
+      //alerting = monitorSensors();
       //get value
       val = getSensorReading(sensor1, sensor1pin);
       //write value
@@ -494,7 +497,7 @@ void loop() {
     tft.println("py:"); 
 
     while ( (digitalRead(buttonApin) == LOW) && (alerting == false) ){
-      alerting = monitorSensors();
+      //alerting = monitorSensors();
 
       /*xval = getSensorReading(sensor1, sensor1pin);
        yval = getSensorReading(sensor2, sensor2pin);
@@ -850,7 +853,7 @@ long int getOBDIIvalue(String whichSensor){
    brz oil temp - in F shows -72 and nothing else
    brz fuel left - shows 1 and nothing else
    */
-  Serial1.flush();
+  //Serial1.flush();
   long int value = 0;
   if (whichSensor.indexOf("obdspeedkph") >= 0){
     Serial1.println("010D"); //mode 1 0D PID
@@ -858,28 +861,38 @@ long int getOBDIIvalue(String whichSensor){
     getResponse();  //value
     value = strtol(&rxData[6],0,16) ; //convert the string to integer
   }
-  if (whichSensor.indexOf("obdspeedmph") >= 0){ //somehow broken but was working before (bleed over from whatever is set before it?)
+  if (whichSensor.indexOf("obdspeedmph") >= 0){ //works,  but has bleedover issues
     Serial1.println("010D"); //mode 1 0D PID
+    //getResponse();
     getResponse();  //value
     value = strtol(&rxData[6],0,16)/1.6 ; //convert the string to integer
   }  
   if (whichSensor.indexOf("obdrpms") >= 0){ //working
     Serial1.println("010C"); //mode 1 0C PID (rpm)
     //Serial.println("getting rpm");
-    getResponse();  //value
+    //getResponse();  //value
+    getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
     //Serial.println("rpm =");
     //Serial.println(value);
   }
   if (whichSensor.indexOf("obdcoolantc") >=0){
-    Serial1.println("O167");
+    Serial.println("coolanc");
+    Serial1.println("O105");   
+    //getResponse();
     getResponse();
+    Serial.println(&rxData[6]);
+    Serial.println((float)strtol(&rxData[6],0,16));
     value = (strtol(&rxData[6],0,16))-40; //aka A-40
+    Serial.print("value of coolantc ");
+    Serial.print(value);
   }
   if (whichSensor.indexOf("obdcoolantf") >=0){ //not working...05 or 67 both return junk
     Serial.println("coolantf");
     Serial1.println("O105"); //gives raw data of "?"
+    Serial1.flush();
     getResponse();
+    //getResponse();
     Serial.println(&rxData[6]);
     Serial.println((float)strtol(&rxData[6],0,16));
     value = ((strtol(&rxData[6],0,16))-40)*1.8+32; //aka A-40
@@ -887,16 +900,16 @@ long int getOBDIIvalue(String whichSensor){
     Serial.print(value);
   }
   if (whichSensor.indexOf("obdboost") >= 0){
-    Serial1.println("0265"); //intake manifold abs pressure
+    Serial1.println("0265"); //intake manifold abs pressure ... doesn't work with brz
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A
   }  
-  if (whichSensor.indexOf("obdiat") >= 0){
+  if (whichSensor.indexOf("obdiat") >= 0){ //not supported on the BRZ ecu
     Serial1.println("O1OF");
     getResponse();
     value = (strtol(&rxData[6],0,16)-40); //aka A-40
   }
-  if (whichSensor.indexOf("obdmaf") >= 0){
+  if (whichSensor.indexOf("obdmaf") >= 0){//I think this works
     Serial1.println("0110");
     getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/100; //aka ((A*256)+B)/100
@@ -904,6 +917,7 @@ long int getOBDIIvalue(String whichSensor){
   if (whichSensor.indexOf("obdvolts") >= 0){ //works perfectly
     Serial1.println("0142");
     //Serial.println("getting volts");
+    //getResponse();
     getResponse();
     value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
     //Serial.println("volts is:");
@@ -922,19 +936,24 @@ long int getOBDIIvalue(String whichSensor){
 
   //nonstandard/experiemental PIDs
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
-    Serial1.println("AT SH 7E0");
-    Serial1.println("2101");    
-    value = ( getResponseCAN('4', 11)) - 40; //29th byte - 40 (?)
-    Serial1.println("AT D");
-    Serial1.println("AT E0");  
+   // Serial1.println("AT SH 7E0");
+    //Serial1.flush();
+    Serial1.println("2101");  
+    getResponse();  
+    value = ((float)strtol(&rxData[109],0,16) - 40); //29th byte - 40 (?)
+    //Serial1.println("AT D");
+    //Serial1.println("AT E0");  
+    //delay(40);
+    //Serial1.println("ATSP6");
   }
   if (whichSensor.indexOf("obdbrzoiltempf") >= 0){ //works
-    Serial1.println("AT SH 7E0");
-    getResponse();
+    //Serial1.println("AT SH 7E0");
+    //Serial1.flush();
+    //getResponse();
     Serial1.println("2101");
-    Serial.println("brz oil temp");
-    //value = ( (getResponseCAN('4', 11) ) - 40) * 1.8 + 32; //29th byte - 40 (?)
     getResponse();
+    Serial.println("brz oil temp");
+    delay(40);
     //Serial.println(&rxData[109]);
     //Serial.println((float)strtol(&rxData[109],0,16));
     value = ((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32;
@@ -942,24 +961,27 @@ long int getOBDIIvalue(String whichSensor){
     //Serial1.println("AT D"); //these two lines make the next 2101 reading get cut off
     //Serial1.println("AT E0");
     //Serial1.flush();
-    delay(40);
-    Serial1.println("ATSP6");//doesn't work and is slow (probing for protocol takes work)
+    //Serial1.println("ATSP6");//doesn't work and is slow (probing for protocol takes work)
     //getResponse();
+    //Serial1.flush();
   }
-  if (whichSensor.indexOf("obdbrzfuelleft") >= 0){ //not working
+  /*if (whichSensor.indexOf("obdbrzfuelleft") >= 0){ //not working
     Serial.println("brz fuel left");
     Serial1.println("AT SH 7C0");
+    //getResponse();
     getResponse();
     Serial1.println("2129");    
     value = ((float)strtol(&rxData[6],0,16)*13.2)/100; // (A*13.2)/100
     Serial.println(value);
     delay(40);
     Serial1.println("ATSP6");
+    //getResponse();
     //Serial1.println("AT D");
     //Serial1.println("AT E0");
-  }
-  delay(100);
-  return value;
+  }*/
+  delay(100);  
+  Serial1.flush();
+  return value; 
 }
 
 int getSensorReading(String sensorName, int pinNumber){
@@ -970,6 +992,7 @@ int getSensorReading(String sensorName, int pinNumber){
   }
   //else call the appropriate Analog to digital conversion function on the appropirate pin
   else {
+    Serial.println("fake sensor");
     if (sensorName.indexOf("fakeaccel") >= 0){
       return random(-1500,1500);    
     }
@@ -999,9 +1022,12 @@ int getSensorReading(String sensorName, int pinNumber){
 }
 
 
-//from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
-void getResponse(void){
+//from:  https://forum.sparkfun.com/viewtopic.php?f=14&t=32457&start=60 and https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
+/*void getResponse(void){
   char c;
+ // int start=millis();
+  //If nothing is currently available do nothing and break after 3 seconds
+  //while(Serial1.available()==0){if(millis()-start>3000){break;}}
   do {
     if (Serial1.available() > 0)
     {
@@ -1017,11 +1043,41 @@ void getResponse(void){
   Serial.print("rxData(in getResponse): ");
   Serial.println(rxData);
   rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
+}*/
+
+void getResponse(void){
+  char obdIn=0;
+  int i=0;
+  int start=millis();
+  //If nothing is currently available do nothing and break after 3 seconds
+  while(Serial1.available()==0){if(millis()-start>3000){break;}}
+  while(Serial1.available()){
+    //check to see if end of line/message
+    if (Serial1.peek()=='\r'){
+      obdIn=Serial1.read();
+      rxData[i]='\0';
+      Serial.println(rxData);
+      i=0;
+    }
+    // The prompt is sometimes the only thing recieved so this needs to be taken care of
+    else if(Serial1.peek()=='>'){
+      obdIn=Serial1.read();
+      Serial.write(obdIn);
+    }
+    // Add next character to string
+    else{
+      obdIn=Serial1.read();
+      rxData[i++]=obdIn;
+    }
+  }
+  Serial.print("rxData(in getResponse): ");
+  Serial.println(rxData);
+  rxIndex=0;
 }
 
 //Because the CAN responses can be interspersed with crap (like OK messages)
 //Also need to linger until the the desired data comes in before switching back to normal OBD II headers
-int getResponseCAN(char stanza, int pos){
+/*int getResponseCAN(char stanza, int pos){
   char c;
   do {
     if (Serial1.available() > 0)
@@ -1051,7 +1107,7 @@ int getResponseCAN(char stanza, int pos){
   //pull the last two items off the array and convert the hex to int to get a reading
   return ( strtol(&rxData[rxIndex-1],0,16) );
   rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer"
-}
+}*/
 
 
 
