@@ -9,11 +9,11 @@
 //use the simplest arduino
 
 /* parts list:
- clock  $35
- arduino $30 (cheaper for smaller one)
- wires $5
- obd II module $50
- 7 segment $10
+ clock 
+ arduino (cheaper for smaller one)
+ wires
+ obd II module 
+ 7 segment serial device
  */
 
 
@@ -25,11 +25,11 @@ int buttonModepin = 13;
 int buttonPeakpin = 12;
 int buttonResetpin = 11;
 String modeList[] = {
-  "obdbrzoiltempf", "obdcoolantc", "obdvolts"};
+  "obdbrzoiltempf", "obdafr", "obdvolts"};
 //names must be 4 characters long...some alphas don't print ("m")
 String modeNames[] = {
-  "OILx", "COOL", "UOLT"};
-String modeNames2[] = {"Fxxx", "Fxxx", "xxxx"};
+  "xOIL", "xAFx", "xULT"};
+String modeNames2[] = {"Fxxx", "xxxx", "xxxx"};
 int warnLevels[] = {
   212, 220, 15};
 int warnSign[] = {
@@ -69,7 +69,9 @@ void setup(){
   getResponse();
   Serial.println("ATE0");
   getResponse();
+  Serial.println("AT SH 7E0");  
   delay(2000);
+  getResponse();
   LCDSerial.print("v");
   Serial.flush();
 
@@ -109,7 +111,7 @@ void loop(){
 
     if (digitalRead(buttonResetpin) == HIGH){
       LCDSerial.print("xxxx");
-      LCDSerial.print("RSET");
+      LCDSerial.print("RXST");
       peaks[mode] = 0;
       while ( (digitalRead(buttonResetpin) == HIGH) ){//if you hold down the peak reset pin...wait a sec and then hit the peak pin...resets obdii and screen
         if ( digitalRead(buttonPeakpin) == HIGH ){
@@ -230,6 +232,11 @@ long int getOBDIIvalue(String whichSensor){
     getResponse();
     value = (strtol(&rxData[6],0,16)); //aka A
   }  
+  if (whichSensor.indexOf("obdafr") >= 0){
+    Serial.println("0134"); //afr reading (readings aren't great)
+    getResponse();
+    value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/32768*14.7;  //(A*256+B)/32768*14.7
+  }
   if (whichSensor.indexOf("obdiat") >= 0){
     Serial.println("O1OF");
     getResponse();
@@ -258,43 +265,39 @@ long int getOBDIIvalue(String whichSensor){
     getResponse();
     value = (strtol(&rxData[6],0,16)-40)*1.8+32; //aka (A-40) *1.8
   }
-
-  //nonstandard/experiemental PIDs
+  
+    //nonstandard/experiemental PIDs
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
-    Serial.println("AT SH 7E0");
-    Serial.println("2101");    
-    //value = ( getResponseCAN('4', 11)) - 40; //29th byte - 40 (?) //TODO: fix this 
-    Serial.println("AT D");
-    Serial.println("AT E0");  
+   // Serial1.println("AT SH 7E0");
+    //Serial1.flush();
+    Serial.println("2101");  
+    getResponse();  
+    value = ((float)strtol(&rxData[109],0,16) - 40); //29th byte - 40 (?)
+    //Serial1.println("AT D");
+    //Serial1.println("AT E0");  
+    //delay(40);
+    //Serial1.println("ATSP6");
   }
-  if (whichSensor.indexOf("obdbrzoiltempf") >= 0){
-    Serial.println("AT SH 7E0");
-    getResponse();
-    Serial.println("2101");
-    //Serial.println("brz oil temp");
-    //value = ( (getResponseCAN('4', 11) ) - 40) * 1.8 + 32; //29th byte - 40 (?)
-    getResponse();
-    value = ((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32; 
-    //Serial.println(value);
-    //Serial.println("AT D"); //these two lines make the next 2101 reading get cut off
-    //Serial.println("AT E0");
-    //Serial.flush();
-    delay(40);
-    Serial.println("ATSP6");//doesn't work and is slow (probing for protocol takes work)
+  if (whichSensor.indexOf("obdbrzoiltempf") >= 0){ //works
+    //Serial1.println("AT SH 7E0");
+    //Serial1.flush();
     //getResponse();
-  }
-  if (whichSensor.indexOf("obdbrzfuelleft") >= 0){
-    //Serial.println("brz fuel left");
-    Serial.println("AT SH 7C0");
+    Serial.println("2101");
     getResponse();
-    Serial.println("2129");    
-    value = ((float)strtol(&rxData[6],0,16)*13.2)/100; // (A*13.2)/100
-    //Serial.println(value);
+    //Serial.println("brz oil temp");
     delay(40);
-    Serial.println("ATSP6");
-    //Serial.println("AT D");
-    //Serial.println("AT E0");
+    //Serial.println(&rxData[109]);
+    //Serial.println((float)strtol(&rxData[109],0,16));
+    value = ((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32;
+    //Serial.println(value);
+    //Serial1.println("AT D"); //these two lines make the next 2101 reading get cut off
+    //Serial1.println("AT E0");
+    //Serial1.flush();
+    //Serial1.println("ATSP6");//doesn't work and is slow (probing for protocol takes work)
+    //getResponse();
+    //Serial1.flush();
   }
+  
   delay(100);
   return value;
 }

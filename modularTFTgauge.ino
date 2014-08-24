@@ -938,6 +938,11 @@ long int getOBDIIvalue(String whichSensor){
     getResponse2();
     value = (strtol(&rxData[6],0,16)-40)*1.8+32; //aka (A-40) *1.8
   }
+  if (whichSensor.indexOf("obdafr") >= 0){
+    Serial.println("0134"); //afr reading (readings aren't great)
+    getResponse();
+    value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/32768*14.7;  //(A*256+B)/32768*14.7
+  }
 
   //nonstandard/experiemental PIDs
   if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
