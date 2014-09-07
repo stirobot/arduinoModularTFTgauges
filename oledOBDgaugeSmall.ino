@@ -29,119 +29,179 @@ char rxIndex=0;
 int buttonModepin = 13;
 int buttonPeakpin = 12;
 int buttonResetpin = 11;
-String modeList[] = {
-	"obdbrzoiltempf", "obdafr", "obdvolts"};
+String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
   //names must be 4 characters long...some alphas don't print ("m")
-  String modeNames[] = {
-   "Oil Temp", "AFR", "Volts"};
-   int warnLevels[] = {
-    212, 220, 15};
-    int warnSign[] = {
-      1,1,1};  //1 for high, 2 for low (in cases like oil pressure)
-      int peaks[] = {
-       0,0,0};
-       int mode = 1;
-       int modes = 2;  //actually this means there are 3 modes...0 is the first of the array
+String modeNames[] = {"Oil Temp", "AFR", "Volts"};
+int warnLevels[] = {212, 220, 15};
+int warnSign[] = {1,1,1};  //1 for high, 2 for low (in cases like oil pressure)
+int peaks[] = {0,0,0};
+int mode = 1;
+int modes = 2;  //actually this means there are 3 modes...0 is the first of the array
 
 
        //store other bmps here:
-       const unsigned char robothead [] = {
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0xE0, 0x00,
-        0x00, 0xE0, 0xF1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x00,
-        0x00, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0x00, 0x00,
-        0x00, 0x00, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x80, 0x80, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0,
-        0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0xA0, 0x80, 0x80, 0x80, 0x80, 0xFF, 0xFF, 0xFF
-      };
+static const unsigned char PROGMEM robothead [] =
+{
+0b00000000, 0b00111100, 0b00000000, 0b00000000, //           ####           
+  0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
+  0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
+  0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
+  0b00000000, 0b00111100, 0b00000000, 0b00000000, //           ####           
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b00000000, 0b00011000, 0b00000000, 0b00000000, //            ##            
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11110000, 0b00111100, 0b00001111, 0b10000000, // ####      ####      #####
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11100000, 0b00000000, 0b00000111, 0b10000000, // ###                  ####
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+};
 
-      const unsigned char batt [] = {
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x3F, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0x3F, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0x3F, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0x3F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0x07, 0x87, 0x87, 0x80, 0xF7, 0xF7, 0x77, 0xF7, 0xF7, 0xF0, 0xF7, 0xF7, 0xF7,
-        0xF7, 0xF7, 0xF0, 0xF7, 0xF7, 0xF7, 0xF7, 0xF7, 0x80, 0x87, 0x87, 0x07, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0x00, 0x7F, 0x7F, 0x7B, 0xFB, 0xFB, 0xC0, 0xFB, 0xFB, 0xFB, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0x7B, 0x7F, 0x7F, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xF8, 0xF8, 0xF8, 0xF8, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB,
-        0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xFB, 0xF8, 0xF8, 0xF8, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF
-      };
+static const unsigned char PROGMEM batt [] = {
+0b00001111, 0b10000000, 0b11111000, 0b00000000, //     #####       #####    
+  0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
+  0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
+  0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
+  0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
+  0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11110000, 0b00000000, 0b00000111, 0b10000000, // ####                 ####
+  0b11110000, 0b00000000, 0b00000111, 0b10000000, // ####                 ####
+  0b11110000, 0b00000000, 0b00000111, 0b10000000, // ####                 ####
+  0b10000010, 0b00000000, 0b00000000, 0b10000000, // #     #                 #
+  0b10000010, 0b00000000, 0b00000000, 0b10000000, // #     #                 #
+  0b10000010, 0b00000000, 0b00000000, 0b10000000, // #     #                 #
+  0b10011111, 0b11000001, 0b11111100, 0b10000000, // #  #######     #######  #
+  0b10000010, 0b00000000, 0b00000000, 0b10000000, // #     #                 #
+  0b10000010, 0b00000000, 0b00000000, 0b10000000, // #     #                 #
+  0b10000010, 0b00000000, 0b00000000, 0b10000000, // #     #                 #
+  0b10000000, 0b00000000, 0b00000000, 0b10000000, // #                       #
+  0b11110000, 0b00000000, 0b00000111, 0b10000000, // ####                 ####
+  0b11110000, 0b00000000, 0b00000111, 0b10000000, // ####                 ####
+  0b11110000, 0b00000000, 0b00000111, 0b10000000, // ####                 ####
+  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+};
 
-      const unsigned char o2 [] = {
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0x1F, 0x07, 0xE3, 0xF9, 0xF8, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xF9, 0xE1, 0x03,
-        0x1F, 0x3F, 0x3F, 0x3F, 0x3F, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFC, 0xE0, 0xC3, 0xCF, 0x9F, 0x9F, 0x9F, 0x9F, 0x9F, 0x8F, 0xCF, 0xE3, 0xF0,
-        0xFC, 0xFF, 0x7F, 0x3F, 0x9E, 0xC0, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xE7, 0xE3,
-        0xE1, 0xE4, 0xE6, 0xE7, 0xE7, 0xE7, 0xE7, 0xE7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-      };
-
-
-      const unsigned char oil [] = {
-        0xFF, 0x9F, 0x8F, 0x07, 0x23, 0x63, 0x47, 0x8F, 0x3F, 0x3F, 0xBF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xE7, 0xE7, 0xE7, 0x07, 0x07, 0xE7, 0xE7, 0xE7, 0xE7, 0xE7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0x7F, 0x7F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x1F, 0x1F, 0x0F, 0xCF, 0xCF, 0xCF, 0xCF, 0xCF,
-        0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFE, 0xFC, 0xFC, 0xF9, 0x00, 0x00, 0xFD,
-        0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0xFC,
-        0xFC, 0xFC, 0xFC, 0xFC, 0xFC, 0x7C, 0x3C, 0x1E, 0x8E, 0xC2, 0xF3, 0xF0, 0xFC, 0xFE, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xF8, 0xF0, 0xFF, 0xFF, 0xFF, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F,
-        0x1F, 0x18, 0x18, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19,
-        0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 
-      };
-
-
-      void setup() {
-       Serial.begin(9600);
-       display.display();
-       display.clearDisplay();
-
-       //show flash screen
-       display.drawBitmap(0, 0, robothead, 32, 32, 1);
-       display.display();
-
-       //shifty eyes
-       for (int i; i < 10; i++){
-         display.fillRect(10, 20, 5, 5, WHITE);
-         display.fillRect(20, 20, 5, 5, WHITE);
-         display.display();
-         delay(10);
-         display.fillRect(10, 20, 5, 5, BLACK);
-         display.fillRect(20, 20, 5, 5, BLACK); 
-         display.display();
-         delay(10);
-         display.fillRect(8, 20, 5, 5, WHITE);
-         display.fillRect(18, 20, 5, 5, WHITE);
-         display.display();
-         delay(10);
-         display.fillRect(8, 20, 5, 5, BLACK);
-         display.fillRect(18, 20, 5, 5, BLACK); 
-         display.display();
-       }
-
-       display.setTextColor(WHITE);
-       display.println("Not A Clock");
-       display.display();
+static const unsigned char PROGMEM o2 [] = {
+0b00001111, 0b11000000, 0b00000000, //     ######           
+  0b00011111, 0b11110000, 0b00000000, //    #########         
+  0b00111000, 0b00111000, 0b00000000, //   ###     ###        
+  0b01100000, 0b00011000, 0b00000000, //  ##        ##        
+  0b01100000, 0b00011000, 0b00000000, //  ##        ##        
+  0b11000000, 0b00001100, 0b00000000, // ##          ##       
+  0b11000000, 0b00001111, 0b11000000, // ##          ######   
+  0b11000000, 0b00001111, 0b11100000, // ##          #######  
+  0b11000000, 0b00001100, 0b01110000, // ##          ##   ### 
+  0b11000000, 0b00001100, 0b00110000, // ##          ##    ## 
+  0b01100000, 0b00011000, 0b00110000, //  ##        ##     ## 
+  0b01100000, 0b00011000, 0b00110000, //  ##        ##     ## 
+  0b01110000, 0b01110000, 0b00100000, //  ###     ###      #  
+  0b00111111, 0b11100000, 0b01100000, //   #########      ##  
+  0b00001111, 0b11000000, 0b11000000, //     ######      ##   
+  0b00000000, 0b00000001, 0b10000000, //                ##    
+  0b00000000, 0b00000011, 0b00000000, //               ##     
+  0b00000000, 0b00000110, 0b00000000, //              ##      
+  0b00000000, 0b00001100, 0b00000000, //             ##       
+  0b00000000, 0b00011111, 0b11111000, //            ##########
+  0b00000000, 0b00011111, 0b11111000, //            ##########
+};
 
 
-       //set up OBD II stuffs
-       Serial.println("ATZ");
-       getResponse();
-       Serial.println("ATDP");
-       getResponse();
-       Serial.println("ATE0");
-       getResponse();
-       Serial.println("AT SH 7E0");  
-       delay(2000);
-       getResponse();
-       Serial.flush();
+static const unsigned char PROGMEM oil [] = {
+0b00011000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, //    ##                                           
+  0b00111100, 0b00000001, 0b11111111, 0b10000000, 0b00000000, 0b00000000, //   ####         ##########                       
+  0b01111110, 0b00000001, 0b11111111, 0b10000000, 0b00000000, 0b01111111, //  ######        ##########                #######
+  0b11100110, 0b00000000, 0b00110000, 0b00000000, 0b00000001, 0b11111111, // ###  ##           ##                   #########
+  0b11110011, 0b11000000, 0b00110000, 0b00000000, 0b00111111, 0b11000000, // ####  ####        ##              ########      
+  0b00111101, 0b10000000, 0b00110000, 0b00000000, 0b11111111, 0b11000000, //   #### ##         ##            ##########      
+  0b00011110, 0b11011111, 0b11111111, 0b11111111, 0b11111011, 0b10000011, //    #### ## ########################## ###     ##
+  0b00000111, 0b11111111, 0b11111111, 0b11111111, 0b11000011, 0b00000011, //      #############################    ##      ##
+  0b00000001, 0b11000000, 0b00000000, 0b00000000, 0b00001110, 0b00000011, //        ###                          ###       ##
+  0b00000000, 0b11000000, 0b00000000, 0b00000000, 0b00001110, 0b00000001, //         ##                          ###        #
+  0b00000000, 0b11000000, 0b00000000, 0b00000000, 0b00011000, 0b00000000, //         ##                         ##           
+  0b00000000, 0b11000000, 0b00000000, 0b00000000, 0b00111000, 0b00000000, //         ##                        ###           
+  0b00000000, 0b11000000, 0b00000000, 0b00000000, 0b01110000, 0b00000000, //         ##                       ###            
+  0b00000000, 0b11000000, 0b00000000, 0b00000000, 0b11100000, 0b00000000, //         ##                      ###             
+  0b00000000, 0b11000000, 0b00000000, 0b00000000, 0b11000000, 0b00000000, //         ##                      ##              
+  0b00000000, 0b11111111, 0b11111111, 0b11111111, 0b11000000, 0b00000000, //         ##########################              
+  0b00000000, 0b11111111, 0b11111111, 0b11111111, 0b10000000, 0b00000000, //         #########################               
+};
 
-       pinMode(buttonModepin, INPUT);
-       pinMode(buttonPeakpin, INPUT);
-       pinMode(buttonResetpin, INPUT);
 
-     }
+void setup() {
+ Serial.begin(9600);
+ display.begin(SSD1306_SWITCHCAPVCC);
+ display.display();
+ display.clearDisplay();
+
+ //show flash screen
+ display.drawBitmap(0, 0, robothead, 32, 32, 1);
+ display.display();
+
+ //shifty eyes
+ for (int i; i < 10; i++){
+   display.fillRect(10, 21, 2, 2, WHITE);
+   display.fillRect(20, 21, 2, 2, WHITE);
+   display.display();
+   delay(200);
+   display.fillRect(10, 21, 2, 2, BLACK);
+   display.fillRect(20, 21, 2, 2, BLACK); 
+   display.display();
+   delay(200);
+   display.fillRect(8, 21, 2, 2, WHITE);
+   display.fillRect(18, 21, 2, 2, WHITE);
+   display.display();
+   delay(200);
+   display.fillRect(8, 21, 2, 2, BLACK);
+   display.fillRect(18, 21, 2, 2, BLACK); 
+   display.display();
+   delay(200);
+ }
+ 
+ display.setCursor(36,0);
+ display.setTextSize(2);
+ display.setTextColor(WHITE);
+ display.println("Not A");
+ display.setCursor(36,15);
+ display.println("Clock");
+ display.display();
+
+
+ //set up OBD II stuffs
+ Serial.println("ATZ");
+ getResponse();
+ Serial.println("ATDP");
+ getResponse();
+ Serial.println("ATE0");
+ getResponse();
+ Serial.println("AT SH 7E0");  
+ delay(2000);
+ getResponse();
+ Serial.flush();
+
+ pinMode(buttonModepin, INPUT);
+ pinMode(buttonPeakpin, INPUT);
+ pinMode(buttonResetpin, INPUT);
+
+}
 
      void loop() {
       while ( (digitalRead(buttonModepin) == LOW) ){
