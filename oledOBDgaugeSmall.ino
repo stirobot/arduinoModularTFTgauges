@@ -21,8 +21,6 @@ Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
 
 Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
-
-
 //This is a character buffer that will store the data from the serial port
 char rxData[115];
 char rxIndex=0;
@@ -33,16 +31,18 @@ String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
   //names must be 4 characters long...some alphas don't print ("m")
 String modeNames[] = {"Oil Temp", "AFR", "Volts"};
 int warnLevels[] = {212, 220, 15};
-int warnSign[] = {1,1,1};  //1 for high, 2 for low (in cases like oil pressure)
+int warnSign[] = {1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
 int peaks[] = {0,0,0};
+int curValue[] = {0,0,0};
+int previousReading[] = {0,0,0};
 int mode = 1;
 int modes = 2;  //actually this means there are 3 modes...0 is the first of the array
 
 
        //store other bmps here:
-static const unsigned char PROGMEM robothead [] =
-{
-0b00000000, 0b00111100, 0b00000000, 0b00000000, //           ####           
+       static const unsigned char PROGMEM robothead [] =
+       {
+  0b00000000, 0b00111100, 0b00000000, 0b00000000, //           ####           
   0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
   0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
   0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
@@ -76,7 +76,7 @@ static const unsigned char PROGMEM robothead [] =
 };
 
 static const unsigned char PROGMEM batt [] = {
-0b00001111, 0b10000000, 0b11111000, 0b00000000, //     #####       #####    
+  0b00001111, 0b10000000, 0b11111000, 0b00000000, //     #####       #####    
   0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
   0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
   0b00010000, 0b01000001, 0b00000100, 0b00000000, //    #     #     #     #   
@@ -101,7 +101,7 @@ static const unsigned char PROGMEM batt [] = {
 };
 
 static const unsigned char PROGMEM o2 [] = {
-0b00001111, 0b11000000, 0b00000000, //     ######           
+  0b00001111, 0b11000000, 0b00000000, //     ######           
   0b00011111, 0b11110000, 0b00000000, //    #########         
   0b00111000, 0b00111000, 0b00000000, //   ###     ###        
   0b01100000, 0b00011000, 0b00000000, //  ##        ##        
@@ -126,7 +126,7 @@ static const unsigned char PROGMEM o2 [] = {
 
 
 static const unsigned char PROGMEM oil [] = {
-0b00011000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, //    ##                                           
+  0b00011000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, //    ##                                           
   0b00111100, 0b00000001, 0b11111111, 0b10000000, 0b00000000, 0b00000000, //   ####         ##########                       
   0b01111110, 0b00000001, 0b11111111, 0b10000000, 0b00000000, 0b01111111, //  ######        ##########                #######
   0b11100110, 0b00000000, 0b00110000, 0b00000000, 0b00000001, 0b11111111, // ###  ##           ##                   #########
@@ -156,26 +156,6 @@ void setup() {
  display.drawBitmap(0, 0, robothead, 32, 32, 1);
  display.display();
 
- //shifty eyes
- for (int i; i < 10; i++){
-   display.fillRect(10, 21, 2, 2, WHITE);
-   display.fillRect(20, 21, 2, 2, WHITE);
-   display.display();
-   delay(200);
-   display.fillRect(10, 21, 2, 2, BLACK);
-   display.fillRect(20, 21, 2, 2, BLACK); 
-   display.display();
-   delay(200);
-   display.fillRect(8, 21, 2, 2, WHITE);
-   display.fillRect(18, 21, 2, 2, WHITE);
-   display.display();
-   delay(200);
-   display.fillRect(8, 21, 2, 2, BLACK);
-   display.fillRect(18, 21, 2, 2, BLACK); 
-   display.display();
-   delay(200);
- }
- 
  display.setCursor(36,0);
  display.setTextSize(2);
  display.setTextColor(WHITE);
@@ -184,6 +164,25 @@ void setup() {
  display.println("Clock");
  display.display();
 
+ //shifty eyes
+ for (int i; i < 8; i++){
+   display.fillRect(8, 22, 2, 2, WHITE);
+   display.fillRect(18, 22, 2, 2, WHITE);
+   display.display();
+   delay(500);
+   display.fillRect(8, 22, 2, 2, BLACK);
+   display.fillRect(18, 22, 2, 2, BLACK); 
+   display.display();
+   //delay(200);
+   display.fillRect(4, 22, 2, 2, WHITE);
+   display.fillRect(14, 22, 2, 2, WHITE);
+   display.display();
+   delay(500);
+   display.fillRect(4, 22, 2, 2, BLACK);
+   display.fillRect(14, 22, 2, 2, BLACK); 
+   display.display();
+   //delay(200);
+ }
 
  //set up OBD II stuffs
  Serial.println("ATZ");
@@ -203,56 +202,103 @@ void setup() {
 
 }
 
-     void loop() {
-      while ( (digitalRead(buttonModepin) == LOW) ){
+void loop() {
+  while ( (digitalRead(buttonModepin) == LOW) ){
 
-           if (digitalRead(buttonPeakpin) == HIGH){ //hold down the peaks button to show the peaks
-              //display peaks for this "mode" here
-              while ( (digitalRead(buttonPeakpin) == HIGH) ){ //debounce
-              } 
-            }
+    if (digitalRead(buttonPeakpin) == HIGH){ //hold down the peaks button to show the peaks
+        //display peaks for this "mode" here
+      while ( (digitalRead(buttonPeakpin) == HIGH) ){ //debounce
+      } 
+    }
 
 
-            int value = getOBDIIvalue(modeList[mode]);
-            if (value > peaks[mode]){
-              peaks[mode] = value;
-            }
+    curValue[mode] = getOBDIIvalue(modeList[mode]);
+    if (curValue[mode] > peaks[mode]){
+      peaks[mode] = curValue[mode];
+    }
 
-          //display the value here (conditonals for multiple display types??)
+    //display the value here (conditonals for multiple display types??)
+    if (mode == 0){
+      updateOT();
+    }
+    else if (mode == 1){
+      updateAFR();
+    }
+    else if (mode == 2){
+      updateVolts();
+    }
 
-          if ( ( (value > warnLevels[mode]) && (warnSign[mode] == 1) ) || ( (value < warnLevels[mode]) && (warnSign[mode] == 0) ) ){
-            //do a warning thing here
-
-            while ( (digitalRead(buttonModepin) == HIGH) ){
-            }
-            if (mode >= modes){
-              mode = 0;
-            }
-            else mode++;
-          }
-          
-        }
-      }
-
-     //from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
-     void getResponse(void){
-       char c;
-       do {
-        if (Serial.available() > 0)
-        {
-         c = Serial.read();
-         if ((c != '>') && (c != '\r') && (c != '\n')) //Keep these out of our buffer
-         {
-          rxData[rxIndex++] = c; //Add whatever we receive to the buffer
-        }
-      }
-    } 
-    while (c != '>'); //The ELM327 ends its response with this char so when we get it we exit out.
-    rxData[rxIndex++] = '\0';  //Converts the array into a string
-    //Serial.print("rxData: ");
-    //Serial.println(rxData);
-    rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
+    //check for warning values here (for this mode only)
+    if ( ( (curValue[mode] > warnLevels[mode]) && (warnSign[mode] == 1) ) || ( (curValue[mode] < warnLevels[mode]) && (warnSign[mode] == 0) ) ){
+      //do a warning thing here
+      warn();
+    }
   }
+  while ( (digitalRead(buttonModepin) == HIGH) ){
+  }
+  if (mode >= modes){
+      mode = 0;
+  }
+  else {
+    mode++;
+    display.clearDisplay();
+    if (mode == 0){//oil temp
+      display.drawBitmap(0, 0, oil, 32, 32, 1);
+      display.display();
+    }
+    if (mode == 1){//AFR
+      display.drawBitmap(0, 0, o2, 32, 32, 1);
+      display.display();
+    }
+    if (mode == 2){//Volts
+      display.drawBitmap(0, 0, batt, 32, 32, 1);
+      display.display();
+    }
+  }
+}
+
+void warn(){
+  return;
+}  
+void updateOT(){
+  display.setTextSize(3);
+  //draw old value
+  display.setTextColor(BLACK);
+  display.setCursor(60,12);
+  display.println(previousReading[mode]);
+  //draw new value
+  display.setTextColor(WHITE);
+  display.setCursor(60,12);
+  display.println(curValue[mode]);
+  previousReading[mode] = curValue[mode];  
+  return;
+} 
+void updateAFR(){
+  return;
+}
+void updateVolts(){
+  return;
+}
+
+ //from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
+void getResponse(void){
+  char c;
+  do {
+    if (Serial.available() > 0)
+    {
+     c = Serial.read();
+     if ((c != '>') && (c != '\r') && (c != '\n')) //Keep these out of our buffer
+     {
+      rxData[rxIndex++] = c; //Add whatever we receive to the buffer
+    }
+  }
+} 
+  while (c != '>'); //The ELM327 ends its response with this char so when we get it we exit out.
+  rxData[rxIndex++] = '\0';  //Converts the array into a string
+  //Serial.print("rxData: ");
+  //Serial.println(rxData);
+  rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean buffer
+}
 
   long int getOBDIIvalue(String whichSensor){
     /*what is working:
