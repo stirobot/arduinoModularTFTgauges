@@ -70,7 +70,7 @@ int modes = 2;  //actually this means there are 3 modes...0 is the first of the 
   0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
   0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
   0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
-  0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
+  0b11100000, 0b00000000, 0b00000111, 0b10000000, // ###                  ####
   0b11100000, 0b00000000, 0b00000111, 0b10000000, // ###                  ####
   0b11111111, 0b11111111, 0b11111111, 0b10000000, // #########################
 };
@@ -217,16 +217,8 @@ void loop() {
       peaks[mode] = curValue[mode];
     }
 
-    //display the value here (conditonals for multiple display types??)
-    if (mode == 0){
-      updateOT();
-    }
-    else if (mode == 1){
-      updateAFR();
-    }
-    else if (mode == 2){
-      updateVolts();
-    }
+    //display the value here...no conditionals...just print the value (for now??)
+    updateVal();
 
     //check for warning values here (for this mode only)
     if ( ( (curValue[mode] > warnLevels[mode]) && (warnSign[mode] == 1) ) || ( (curValue[mode] < warnLevels[mode]) && (warnSign[mode] == 0) ) ){
@@ -241,9 +233,14 @@ void loop() {
   }
   else {
     mode++;
+    //upon switching modes blank screen and display that mode's icon
+    //also print the unit of measurement if used
     display.clearDisplay();
+    display.setTextSize(3);
     if (mode == 0){//oil temp
       display.drawBitmap(0, 0, oil, 32, 32, 1);
+      display.setCursor(105,12);
+      display.println("°F"); //dunno if the deg symbol will work
       display.display();
     }
     if (mode == 1){//AFR
@@ -252,15 +249,19 @@ void loop() {
     }
     if (mode == 2){//Volts
       display.drawBitmap(0, 0, batt, 32, 32, 1);
+      display.setCursor(105,12);
+      display.println("V"); //dunno if the deg symbol will work
       display.display();
     }
   }
 }
 
 void warn(){
+  //a warning scroller on the top and bottom
   return;
-}  
-void updateOT(){
+} 
+
+void updateVal(){
   display.setTextSize(3);
   //draw old value
   display.setTextColor(BLACK);
@@ -273,12 +274,6 @@ void updateOT(){
   previousReading[mode] = curValue[mode];  
   return;
 } 
-void updateAFR(){
-  return;
-}
-void updateVolts(){
-  return;
-}
 
  //from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
 void getResponse(void){
