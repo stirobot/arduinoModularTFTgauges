@@ -224,13 +224,22 @@ void loop() {
   buttonV = analogRead(A0);
   while ( (analogRead(A0) <= 430) || (analogRead(A0) >= 490) ){ //not mode button
     buttonV = analogRead(A0);
-    if ( (buttonV <= 500) && (buttonV >= 600) ){ //hold down the peaks button to show the peaks (545)
+    if ( (buttonV <= 500) && (buttonV >= 600) ){ //hold down the peaks button to show the peaks of this mode (545)
       while ( (buttonV <= 500) && (buttonV >= 600) ){ //debounce
         //display peaks for this "mode" here
         buttonV = analogRead(A0);
       } 
     }
 
+    //hold reset button here to reset peak of specific mode (300)
+    if ( (buttonV <= 325) && (buttonV >= 285) ){ //hold down the peaks button to show the peaks of this mode (545)
+      while ( (buttonV <= 325) && (buttonV >= 285) ){ //debounce
+        //display "RESET" message here
+        buttonV = analogRead(A0);
+      } 
+      //reset peak specific to this mode
+      peak[mode] = 0;
+    }
 
     curValue[mode] = getOBDIIvalue(modeList[mode]);
     if (curValue[mode] > peaks[mode]){
@@ -295,7 +304,7 @@ void updateVal(){
   return;
 } 
 
- //from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
+//from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
 void getResponse(void){
   char c;
   do {
