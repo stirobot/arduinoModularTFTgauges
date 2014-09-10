@@ -24,9 +24,8 @@ Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 //This is a character buffer that will store the data from the serial port
 char rxData[115];
 char rxIndex=0;
-int buttonModepin = 13;
-int buttonPeakpin = 12;
-int buttonResetpin = 11;
+int buttonV;
+
 String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
   //names must be 4 characters long...some alphas don't print ("m")
 String modeNames[] = {"Oil Temp", "AFR", "Volts"};
@@ -40,8 +39,7 @@ int modes = 2;  //actually this means there are 3 modes...0 is the first of the 
 
 
        //store other bmps here:
-       static const unsigned char PROGMEM robothead [] =
-       {
+static const unsigned char PROGMEM robothead [] = {
   0b00000000, 0b00111100, 0b00000000, 0b00000000, //           ####           
   0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
   0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
@@ -147,6 +145,13 @@ static const unsigned char PROGMEM oil [] = {
 
 
 void setup() {
+ pinMode(A0, INPUT_PULLUP);
+ //3 buttons connected as such: http://tronixstuff.com/2011/01/11/tutorial-using-analog-input-for-multiple-buttons/
+ //use 15 Kohm resistors
+ //no buttons is 1010
+ //button nearest gnd is 300
+ //middle button is 454
+ //last button is 555
  Serial.begin(9600);
  display.begin(SSD1306_SWITCHCAPVCC);
  display.display();
@@ -173,7 +178,6 @@ void setup() {
    display.fillRect(8, 22, 2, 2, BLACK);
    display.fillRect(18, 22, 2, 2, BLACK); 
    display.display();
-   //delay(200);
    display.fillRect(4, 22, 2, 2, WHITE);
    display.fillRect(14, 22, 2, 2, WHITE);
    display.display();
@@ -181,8 +185,27 @@ void setup() {
    display.fillRect(4, 22, 2, 2, BLACK);
    display.fillRect(14, 22, 2, 2, BLACK); 
    display.display();
-   //delay(200);
  }
+
+  //temporary stuff to test button setup
+  display.clearDisplay();
+  display.display();
+  int tempVal;
+  while(true){
+    tempVal = analogRead(0);
+    display.setCursor(36,0);
+    display.setTextSize(2);
+    display.setTextColor(WHITE);
+    display.println(tempVal);
+    display.display();
+    delay(100);
+    display.setCursor(36,0);
+    display.setTextSize(2);
+    display.setTextColor(BLACK);
+    display.println(tempVal);
+    display.display();
+  }
+  //end temp stuff for testing buttons
 
  //set up OBD II stuffs
  Serial.println("ATZ");
@@ -195,19 +218,16 @@ void setup() {
  delay(2000);
  getResponse();
  Serial.flush();
-
- pinMode(buttonModepin, INPUT);
- pinMode(buttonPeakpin, INPUT);
- pinMode(buttonResetpin, INPUT);
-
 }
 
 void loop() {
-  while ( (digitalRead(buttonModepin) == LOW) ){
-
-    if (digitalRead(buttonPeakpin) == HIGH){ //hold down the peaks button to show the peaks
+  buttonV = analogRead(A0);
+  while ( (analogRead(A0) <= 430) || (analogRead(A0) >= 490) ){ //not mode button
+    buttonV = analogRead(A0);
+    if ( (buttonV <= 500) && (buttonV >= 600) ){ //hold down the peaks button to show the peaks (545)
+      while ( (buttonV <= 500) && (buttonV >= 600) ){ //debounce
         //display peaks for this "mode" here
-      while ( (digitalRead(buttonPeakpin) == HIGH) ){ //debounce
+        buttonV = analogRead(A0);
       } 
     }
 
@@ -226,7 +246,7 @@ void loop() {
       warn();
     }
   }
-  while ( (digitalRead(buttonModepin) == HIGH) ){
+  while ( (analogRead(A0) >= 430) && (analogRead(A0) <= 490) ){ //mode button
   }
   if (mode >= modes){
       mode = 0;
