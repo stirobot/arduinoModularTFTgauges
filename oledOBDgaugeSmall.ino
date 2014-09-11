@@ -3,9 +3,6 @@
 
 //TODO: 
 //0 reading for oil temp? (quickly flashes a real value for a sec)
-//move oil value left
-//can't draw text on value area after
-//  reset on any mode
 
 #include <SPI.h>
 #include <Wire.h>
@@ -287,7 +284,7 @@ void setup() {
  //put first mode icon and unit here
   display.drawBitmap(0, 0, oil, 32, 32, 1);
   display.setCursor(110,12);
-  display.println("F"); //dunno if the deg symbol will work
+  display.println("F");
   display.display();
 }
 
@@ -307,8 +304,10 @@ void loop() {
         buttonV = analogRead(A0);
         delay(50);
       } 
-      display.fillRect(50,0,54,32,BLACK); //black area between icon and unit
+      display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+      updateVal(); //just incase it doesn't draw below because the values stay the same
       display.display();
+      buttonV = analogRead(A0);
     }
 
     //hold reset button here to reset peak of specific mode (300)
@@ -325,6 +324,7 @@ void loop() {
       } 
       //reset peak specific to this mode
       display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+      updateVal(); //just incase it doesn't draw below because the values stay the same
       display.display();
       peaks[mode] = 0;
       buttonV = analogRead(A0);
@@ -359,10 +359,11 @@ void loop() {
     //also print the unit of measurement if used
     display.clearDisplay();
     display.setTextSize(3);
+    display.setTextColor(WHITE);
     if (mode == 0){//oil temp
       display.drawBitmap(0, 0, oil, 32, 32, 1);
       display.setCursor(110,12);
-      display.println("F"); //dunno if the deg symbol will work
+      display.println("F"); 
       display.display();
     }
     if (mode == 1){//AFR
@@ -372,9 +373,10 @@ void loop() {
     if (mode == 2){//Volts
       display.drawBitmap(0, 0, batt, 32, 32, 1);
       display.setCursor(110,12);
-      display.println("V"); //dunno if the deg symbol will work
+      display.println("V"); 
       display.display();
     }
+    updateVal(); //if you don't update here and the value hasn't changed you get blank value
 }
 
 void warn(){
@@ -391,12 +393,12 @@ void updateVal(){
   display.setTextSize(3);
   //draw old value
   display.setTextColor(BLACK);
-  display.setCursor(60,12);
+  display.setCursor(50,12);
   display.println(previousReading[mode]);
   display.display();
   //draw new value
   display.setTextColor(WHITE);
-  display.setCursor(60,12);
+  display.setCursor(50,12);
   display.println(curValue[mode]);
   display.display();
   previousReading[mode] = curValue[mode];  
@@ -438,7 +440,7 @@ void getResponse(void){
     brz oil temp - in F shows -72 and nothing else
     brz fuel left - shows 1 and nothing else
     */
-    Serial.flush();
+    //Serial.flush();
     long int value = 0;
     if (whichSensor.indexOf("obdspeedkph") >= 0){
       Serial.println("010D"); //mode 1 0D PID
