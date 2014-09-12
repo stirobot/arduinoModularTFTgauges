@@ -29,7 +29,8 @@ char rxData[115];
 char rxIndex=0;
 int buttonV;
 
-String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
+//String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
+String curMode = "obdbrzoiltempf";
 int warnLevels[] = {212, 220, 15};
 int warnSign[] = {1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
 int peaks[] = {0,0,0};
@@ -259,8 +260,8 @@ void setup() {
    display.fillRect(4, 22, 2, 2, WHITE);
    display.fillRect(14, 22, 2, 2, WHITE);
    display.display();
- Serial.println("ATDP");
- getResponse();
+///Serial.println("ATDP");
+//getResponse();
  delay(1000);
    display.fillRect(8, 22, 2, 2, WHITE);
    display.fillRect(18, 22, 2, 2, WHITE);
@@ -277,11 +278,23 @@ void setup() {
  Serial.println("AT SH 7E0");  
  getResponse();
  delay(1000);
+//block to test out the oil temp reading
+ //******
+ for (int g=0;g<=3;g++){
+ Serial.println("2101");
+ getResponse();
  Serial.flush();
  display.clearDisplay();
  display.display();
+ display.setCursor(0,0);
+ display.println(((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32);
+ display.display();
+ delay(1000);
+}
+ //******
 
  //put first mode icon and unit here
+  display.clearDisplay();
   display.drawBitmap(0, 0, oil, 32, 32, 1);
   display.setCursor(110,12);
   display.println("F");
@@ -305,6 +318,7 @@ void loop() {
         delay(50);
       } 
       display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+      getVal();
       updateVal(); //just incase it doesn't draw below because the values stay the same
       display.display();
       buttonV = analogRead(A0);
@@ -324,19 +338,16 @@ void loop() {
       } 
       //reset peak specific to this mode
       display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+      getVal();
       updateVal(); //just incase it doesn't draw below because the values stay the same
       display.display();
       peaks[mode] = 0;
       buttonV = analogRead(A0);
     }
 
-    curValue[mode] = getOBDIIvalue(modeList[mode]);
-    if (curValue[mode] > peaks[mode]){
-      peaks[mode] = curValue[mode];
-    }
-
     //display the value here...no conditionals...just print the value (for now??)
     //only print if it changes to avoid flickering
+    getVal();
     if ( abs(curValue[mode]-previousReading[mode]) > 0 ){
      updateVal();
     }
@@ -376,6 +387,7 @@ void loop() {
       display.println("V"); 
       display.display();
     }
+    getVal();
     updateVal(); //if you don't update here and the value hasn't changed you get blank value
 }
 
@@ -388,6 +400,21 @@ void warn(){
   }
   return;
 } 
+
+void getVal(){
+  if (mode == 0){
+   curValue[mode] = getOBDIIvalue("obdbrzoiltempf");//modeList[mode]);
+  }
+  else if (mode == 1){
+    curValue[mode] = getOBDIIvalue("obdafr");
+  }
+  else if (mode == 0){
+    curValue[mode] = getOBDIIvalue("obdvolts");
+  }
+  if (curValue[mode] > peaks[mode]){
+    peaks[mode] = curValue[mode];
+  }
+}
 
 void updateVal(){
   display.setTextSize(3);
@@ -408,9 +435,9 @@ void updateVal(){
 //from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
 void getResponse(void){
   char c;
-  int start=millis();
+  //int start=millis();
   //If nothing is currently available do nothing and break after 3 seconds
-  while(Serial.available()==0){if(millis()-start>3000){break;}}
+  //while(Serial.available()==0){if(millis()-start>3000){break;}}
   do {
     if (Serial.available() > 0)
     {
@@ -429,17 +456,6 @@ void getResponse(void){
 }
 
   long int getOBDIIvalue(String whichSensor){
-    /*what is working:
-    speed - works 
-    rpms - works 
-    coolant - reads in F as 10 and nothing else
-    boost - can't test yet
-    iat and maf - can't tell/don't really care
-    volts - works (maybe add decimal?)
-    oiltemp(f/c) - haven't tested (shouldn't work on many cars)
-    brz oil temp - in F shows -72 and nothing else
-    brz fuel left - shows 1 and nothing else
-    */
     //Serial.flush();
     long int value = 0;
     if (whichSensor.indexOf("obdspeedkph") >= 0){
@@ -515,7 +531,7 @@ void getResponse(void){
 
  //nonstandard/experiemental PIDs
  if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
-   // Serial1.println("AT SH 7E0");
+   //Serial.println("AT SH 7E0");
    //Serial1.flush();
    Serial.println("2101");  
    getResponse();  
@@ -526,23 +542,17 @@ void getResponse(void){
    //Serial1.println("ATSP6");
  }
  if (whichSensor.indexOf("obdbrzoiltempf") >= 0){ //works
-  //Serial1.println("AT SH 7E0");
+  //Serial.println("AT SH 7E0"); //TRY
   //Serial1.flush();
   //getResponse();
   Serial.println("2101");
-  getResponse();
+  getResponse();  //try getResponse2()
   //Serial.println("brz oil temp");
   //delay(40);
   //Serial.println(&rxData[109]);
-  //Serial.println((float)strtol(&rxData[109],0,16));
+  //Serial.println((float)strtol(&rxData[109],0,16)); 
   value = ((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32;
-  //Serial.println(value);
-  //Serial1.println("AT D"); //these two lines make the next 2101 reading get cut off
-  //Serial1.println("AT E0");
-  //Serial1.flush();
-  //Serial1.println("ATSP6");//doesn't work and is slow (probing for protocol takes work)
-  //getResponse();
-  //Serial1.flush();
+  //Serial.println(value); //TRY
 }
 
   delay(100);  
