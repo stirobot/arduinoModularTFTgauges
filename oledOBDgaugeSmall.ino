@@ -2,7 +2,15 @@
 //set up to use the SPI 128x32 OLED display from adafruit
 
 //TODO: 
-//0 reading for oil temp? (quickly flashes a real value for a sec)
+//fix PIDs or delete them (coolant/IAT)
+//return decimals for AFR (and maybe others?)
+//test peak recall
+//test warning function
+
+//hardware TODO:
+//desoldier buttons and wire up
+//desoldier led backlight
+//wire up power
 
 #include <SPI.h>
 #include <Wire.h>
@@ -31,13 +39,13 @@ int buttonV;
 
 //String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
 String curMode = "obdbrzoiltempf";
-int warnLevels[] = {212, 220, 15};
-int warnSign[] = {1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
-int peaks[] = {0,0,0};
-int curValue[] = {0,0,0};
-int previousReading[] = {0,0,0};
+int warnLevels[] = {212, 220, 15, 220, 300};
+int warnSign[] = {1,1,1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
+int peaks[] = {0,0,0,0,0};
+int curValue[] = {0,0,0,0,0};
+int previousReading[] = {0,0,0,0,0};
 int mode = 0;
-int modes = 2;  //actually this means there are 3 modes...0 is the first of the array
+int modes = 2;  //0 is the first of the array
 
 
        //store other bmps here:
@@ -181,6 +189,75 @@ static const unsigned char PROGMEM oil [] = {
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                
 };
 
+static const unsigned char PROGMEM coolant [] = {
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
+  0b00000000, 0b00000011, 0b10000111, 0b11110000, //               ###    #######    
+  0b00000111, 0b11110011, 0b10011100, 0b00011100, //      #######  ###  ###     ###  
+  0b00011100, 0b00011111, 0b11110000, 0b00000110, //    ###     #########         ## 
+  0b01110000, 0b00000111, 0b11100000, 0b00000011, //  ###         ######           ##
+  0b11000000, 0b00000011, 0b10000000, 0b00000001, // ##            ###              #
+  0b10000000, 0b00000111, 0b11000000, 0b00000000, // #            #####              
+  0b00000000, 0b00000111, 0b11000000, 0b00000000, //              #####              
+  0b00000000, 0b00000111, 0b11000000, 0b00000000, //              #####              
+  0b00000000, 0b00000111, 0b11000000, 0b00000000, //              #####              
+  0b00000111, 0b11110011, 0b10000111, 0b11110000, //      #######  ###    #######    
+  0b00011100, 0b00011100, 0b00011100, 0b00011100, //    ###     ###     ###     ###  
+  0b01110000, 0b00000110, 0b01110000, 0b00000110, //  ###         ##  ###         ## 
+  0b11000000, 0b00000011, 0b11000000, 0b00000011, // ##            ####            ##
+  0b10000000, 0b00000001, 0b10000000, 0b00000001, // #              ##              #
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+};
+
+static const unsigned char PROGMEM intake [] = {
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00001100, 0b00000000, //                     ##          
+  0b00000000, 0b00000000, 0b01111100, 0b00000000, //                  #####          
+  0b00000000, 0b00000011, 0b11110100, 0b00000000, //               ###### #          
+  0b00000000, 0b00111111, 0b10000100, 0b00000000, //           #######    #          
+  0b00000001, 0b11111000, 0b10000100, 0b00000000, //        ######   #    #          
+  0b00001111, 0b01001000, 0b10111111, 0b11111111, //     #### #  #   # ##############
+  0b00001100, 0b01111111, 0b11000111, 0b11111111, //     ##   #########   ###########
+  0b00001111, 0b11001000, 0b10000111, 0b11111111, //     ######  #   #    ###########
+  0b00001100, 0b01001011, 0b11111111, 0b11111111, //     ##   #  # ##################
+  0b00001111, 0b11111100, 0b10000111, 0b11111111, //     ##########  #    ###########
+  0b00001100, 0b01001000, 0b10000111, 0b11111111, //     ##   #  #   #    ###########
+  0b00001111, 0b11111111, 0b11111111, 0b11111111, //     ############################
+  0b00001100, 0b01001000, 0b10000111, 0b11111111, //     ##   #  #   #    ###########
+  0b00001111, 0b11111000, 0b10000111, 0b11111111, //     #########   #    ###########
+  0b00001100, 0b01001111, 0b11111111, 0b11111111, //     ##   #  ####################
+  0b00001111, 0b11001000, 0b10000111, 0b11111111, //     ######  #   #    ###########
+  0b00001100, 0b01111111, 0b11000111, 0b11111111, //     ##   #########   ###########
+  0b00001111, 0b01001000, 0b10111111, 0b11111111, //     #### #  #   # ##############
+  0b00001100, 0b11111000, 0b10000111, 0b11111111, //     ##  #####   #    ###########
+  0b00001110, 0b01001111, 0b10000111, 0b11111111, //     ###  #  #####    ###########
+  0b00001111, 0b11001000, 0b11110111, 0b11111111, //     ######  #   #### ###########
+  0b00000011, 0b11111100, 0b10001111, 0b11111111, //       ########  #   ############
+  0b00000000, 0b01111111, 0b10000100, 0b00000000, //          ########    #          
+  0b00000000, 0b00001111, 0b11110100, 0b00000000, //             ######## #          
+  0b00000000, 0b00000011, 0b11111100, 0b00000000, //               ########          
+  0b00000000, 0b00000000, 0b01111100, 0b00000000, //                  #####          
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+};
 
 void setup() {
  pinMode(A0, INPUT_PULLUP);
@@ -248,23 +325,23 @@ void setup() {
   //end temp stuff for testing buttons
 
  //set up OBD II stuffs
-   display.fillRect(8, 22, 2, 2, WHITE);
-   display.fillRect(18, 22, 2, 2, WHITE);
+   display.fillRect(8, 21, 2, 2, WHITE);
+   display.fillRect(18, 21, 2, 2, WHITE);
    display.display();
  Serial.println("ATZ");
  getResponse();
  delay(1000);
-   display.fillRect(8, 22, 2, 2, BLACK);
-   display.fillRect(18, 22, 2, 2, BLACK); 
+   display.fillRect(8, 21, 2, 2, BLACK);
+   display.fillRect(18, 21, 2, 2, BLACK); 
    display.display();
-   display.fillRect(4, 22, 2, 2, WHITE);
-   display.fillRect(14, 22, 2, 2, WHITE);
+   display.fillRect(4, 21, 2, 2, WHITE);
+   display.fillRect(14, 21, 2, 2, WHITE);
    display.display();
 ///Serial.println("ATDP");
 //getResponse();
  delay(1000);
-   display.fillRect(8, 22, 2, 2, WHITE);
-   display.fillRect(18, 22, 2, 2, WHITE);
+   display.fillRect(8, 21, 2, 2, WHITE);
+   display.fillRect(18, 21, 2, 2, WHITE);
    display.display();
  Serial.println("ATE0");
  getResponse();
@@ -279,7 +356,7 @@ void setup() {
  getResponse();
  delay(1000);
 //block to test out the oil temp reading
- //******
+ /******
  for (int g=0;g<=3;g++){
  Serial.println("2101");
  getResponse();
@@ -291,7 +368,7 @@ void setup() {
  display.display();
  delay(1000);
 }
- //******
+ */
 
  //put first mode icon and unit here
   display.clearDisplay();
@@ -368,6 +445,16 @@ void loop() {
   }
     //upon switching modes blank screen and display that mode's icon
     //also print the unit of measurement if used
+    //but first reset the OBDII stuff just in case (might not be necessary)
+    /*Serial.println("ATZ");
+    getResponse();
+    delay(500);
+    Serial.println("ATE0");
+    getResponse();
+    delay(500);
+    Serial.println("AT SH 7E0");  
+    getResponse();
+    delay(500);*/
     display.clearDisplay();
     display.setTextSize(3);
     display.setTextColor(WHITE);
@@ -385,6 +472,18 @@ void loop() {
       display.drawBitmap(0, 0, batt, 32, 32, 1);
       display.setCursor(110,12);
       display.println("V"); 
+      display.display();
+    }
+    if (mode == 3){//Coolant
+      display.drawBitmap(0, 0, coolant, 32, 32, 1);
+      display.setCursor(110,12);
+      display.println("F"); 
+      display.display();
+    }
+    if (mode == 4){
+      display.drawBitmap(0, 0, intake, 32, 32, 1);
+      display.setCursor(110,12);
+      display.println("F"); 
       display.display();
     }
     getVal();
@@ -408,8 +507,14 @@ void getVal(){
   else if (mode == 1){
     curValue[mode] = getOBDIIvalue("obdafr");
   }
-  else if (mode == 0){
+  else if (mode == 2){
     curValue[mode] = getOBDIIvalue("obdvolts");
+  }
+  else if (mode == 3){
+    curValue[mode] = getOBDIIvalue("obdcoolantf");
+  }
+  else if (mode == 4){
+    curValue[mode] = getOBDIIvalue("obdiat");
   }
   if (curValue[mode] > peaks[mode]){
     peaks[mode] = curValue[mode];
