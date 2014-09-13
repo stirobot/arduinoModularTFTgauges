@@ -3,11 +3,12 @@
 
 //TODO: 
 //fix PIDs or delete them (coolant/IAT)
-//return decimals for AFR (and maybe others?)
-//test peak recall
-//test warning function
+//test peak recall (fix...isn't really working...wrong voltage range??)
+//test warning function (set one low and test that way)
 
 //hardware TODO:
+//take protective strip off
+//test tinting plastic to appear red/amber
 //desoldier buttons and wire up
 //desoldier led backlight
 //wire up power
@@ -41,11 +42,11 @@ int buttonV;
 String curMode = "obdbrzoiltempf";
 int warnLevels[] = {212, 220, 15, 220, 300};
 int warnSign[] = {1,1,1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
-int peaks[] = {0,0,0,0,0};
-int curValue[] = {0,0,0,0,0};
-int previousReading[] = {0,0,0,0,0};
+float peaks[] = {0,0,0,0,0};
+float curValue[] = {0,0,0,0,0};
+float previousReading[] = {0,0,0,0,0};
 int mode = 0;
-int modes = 2;  //0 is the first of the array
+int modes = 4;  //0 is the first of the array
 
 
        //store other bmps here:
@@ -155,14 +156,7 @@ static const unsigned char PROGMEM o2 [] = {
 
 
 static const unsigned char PROGMEM oil [] = {
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
@@ -182,24 +176,31 @@ static const unsigned char PROGMEM oil [] = {
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                
+  0b00000000, 0b11011111, 0b11100000, 0b00000000, //         ## ########             
+  0b00000000, 0b11011111, 0b11100000, 0b00000000, //         ## ########             
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011111, 0b11000000, 0b00000000, //            #######              
+  0b00000000, 0b00011111, 0b11000000, 0b00000000, //            #######              
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                  
+  0b00000000, 0b00011100, 0b00000000, 0b00000000, //            ###                                  
 };
 
 static const unsigned char PROGMEM coolant [] = {
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
-  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
-  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
-  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
-  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
-  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
-  0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
-  0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
+  0b00111111, 0b10000000, 0b00000000, 0b00000000, //   #######                       
+  0b00111000, 0b00000011, 0b10000000, 0b00000000, //   ###         ###               
+  0b00111000, 0b00000011, 0b10000000, 0b00000000, //   ###         ###               
+  0b00111000, 0b00000011, 0b11111110, 0b00000000, //   ###         #########         
+  0b00111111, 0b00000011, 0b11111110, 0b00000000, //   ######      #########         
+  0b00111000, 0b00000011, 0b11111110, 0b00000000, //   ###         #########         
+  0b00111000, 0b00000011, 0b10000000, 0b00000000, //   ###         ###               
+  0b00111000, 0b00000011, 0b10000000, 0b00000000, //   ###         ###               
+  0b00111000, 0b00000011, 0b11111110, 0b00000000, //   ###         #########         
   0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
   0b00000000, 0b00000011, 0b11111110, 0b00000000, //               #########         
   0b00000000, 0b00000011, 0b10000000, 0b00000000, //               ###               
@@ -221,7 +222,7 @@ static const unsigned char PROGMEM coolant [] = {
   0b10000000, 0b00000001, 0b10000000, 0b00000001, // #              ##              #
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                                               
 };
 
 static const unsigned char PROGMEM intake [] = {
@@ -236,15 +237,15 @@ static const unsigned char PROGMEM intake [] = {
   0b00001111, 0b01001000, 0b10111111, 0b11111111, //     #### #  #   # ##############
   0b00001100, 0b01111111, 0b11000111, 0b11111111, //     ##   #########   ###########
   0b00001111, 0b11001000, 0b10000111, 0b11111111, //     ######  #   #    ###########
-  0b00001100, 0b01001011, 0b11111111, 0b11111111, //     ##   #  # ##################
-  0b00001111, 0b11111100, 0b10000111, 0b11111111, //     ##########  #    ###########
-  0b00001100, 0b01001000, 0b10000111, 0b11111111, //     ##   #  #   #    ###########
-  0b00001111, 0b11111111, 0b11111111, 0b11111111, //     ############################
-  0b00001100, 0b01001000, 0b10000111, 0b11111111, //     ##   #  #   #    ###########
-  0b00001111, 0b11111000, 0b10000111, 0b11111111, //     #########   #    ###########
-  0b00001100, 0b01001111, 0b11111111, 0b11111111, //     ##   #  ####################
-  0b00001111, 0b11001000, 0b10000111, 0b11111111, //     ######  #   #    ###########
-  0b00001100, 0b01111111, 0b11000111, 0b11111111, //     ##   #########   ###########
+  0b00001100, 0b01001011, 0b11111111, 0b10000011, //     ##   #  # ###########     ##
+  0b00001111, 0b11111100, 0b10000111, 0b10011111, //     ##########  #    ####  #####
+  0b00001100, 0b01001000, 0b10000111, 0b10011111, //     ##   #  #   #    ####  #####
+  0b00001111, 0b11111111, 0b11111111, 0b10011111, //     #####################  #####
+  0b00001100, 0b01001000, 0b10000111, 0b10000011, //     ##   #  #   #    ####     ##
+  0b00001111, 0b11111000, 0b10000111, 0b10011111, //     #########   #    ####  #####
+  0b00001100, 0b01001111, 0b11111111, 0b10011111, //     ##   #  #############  #####
+  0b00001111, 0b11001000, 0b10000111, 0b10011111, //     ######  #   #    ####  #####
+  0b00001100, 0b01111111, 0b11000111, 0b10011111, //     ##   #########   ####  #####
   0b00001111, 0b01001000, 0b10111111, 0b11111111, //     #### #  #   # ##############
   0b00001100, 0b11111000, 0b10000111, 0b11111111, //     ##  #####   #    ###########
   0b00001110, 0b01001111, 0b10000111, 0b11111111, //     ###  #  #####    ###########
@@ -256,7 +257,7 @@ static const unsigned char PROGMEM intake [] = {
   0b00000000, 0b00000000, 0b01111100, 0b00000000, //                  #####          
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
-  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                                                 
 };
 
 void setup() {
@@ -373,8 +374,8 @@ void setup() {
  //put first mode icon and unit here
   display.clearDisplay();
   display.drawBitmap(0, 0, oil, 32, 32, 1);
-  display.setCursor(110,12);
-  display.println("F");
+  display.setCursor(110,11);
+  //display.println("F");
   display.display();
 }
 
@@ -385,7 +386,7 @@ void loop() {
     if ( (buttonV <= 500) && (buttonV >= 600) ){ //hold down the peaks button to show the peaks of this mode (545)
       while ( (buttonV <= 500) && (buttonV >= 600) ){ //debounce
         //display peaks for this "mode" here
-        display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+        display.fillRect(48,0,80,32,BLACK); //black area between icon and unit
         display.setTextSize(3);
         display.setTextColor(WHITE);
         display.setCursor(48,10);
@@ -394,7 +395,7 @@ void loop() {
         buttonV = analogRead(A0);
         delay(50);
       } 
-      display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+      display.fillRect(48,0,80,32,BLACK); //black area between icon and unit
       getVal();
       updateVal(); //just incase it doesn't draw below because the values stay the same
       display.display();
@@ -404,7 +405,7 @@ void loop() {
     //hold reset button here to reset peak of specific mode (300)
     if ( (buttonV <= 325) && (buttonV >= 285) ){ //hold down the reset button to reseet the peaks of this mode (3??)
       while ( (buttonV <= 325) && (buttonV >= 285) ){ //debounce
-        display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+        display.fillRect(48,0,80,32,BLACK); //black area between icon and unit
         display.setTextSize(3);
         display.setCursor(48,10);
         display.setTextColor(WHITE);
@@ -414,7 +415,7 @@ void loop() {
         delay(50);
       } 
       //reset peak specific to this mode
-      display.fillRect(48,0,52,32,BLACK); //black area between icon and unit
+      display.fillRect(48,0,80,32,BLACK); //black area between icon and unit
       getVal();
       updateVal(); //just incase it doesn't draw below because the values stay the same
       display.display();
@@ -460,8 +461,8 @@ void loop() {
     display.setTextColor(WHITE);
     if (mode == 0){//oil temp
       display.drawBitmap(0, 0, oil, 32, 32, 1);
-      display.setCursor(110,12);
-      display.println("F"); 
+      display.setCursor(110,11);
+      //display.println("F"); 
       display.display();
     }
     if (mode == 1){//AFR
@@ -470,20 +471,20 @@ void loop() {
     }
     if (mode == 2){//Volts
       display.drawBitmap(0, 0, batt, 32, 32, 1);
-      display.setCursor(110,12);
-      display.println("V"); 
+      //display.setCursor(110,11);
+      //display.println("V"); 
       display.display();
     }
     if (mode == 3){//Coolant
       display.drawBitmap(0, 0, coolant, 32, 32, 1);
-      display.setCursor(110,12);
-      display.println("F"); 
+      display.setCursor(110,11);
+      //display.println("F"); 
       display.display();
     }
     if (mode == 4){
       display.drawBitmap(0, 0, intake, 32, 32, 1);
-      display.setCursor(110,12);
-      display.println("F"); 
+      display.setCursor(110,11);
+      //display.println("F"); 
       display.display();
     }
     getVal();
@@ -531,7 +532,12 @@ void updateVal(){
   //draw new value
   display.setTextColor(WHITE);
   display.setCursor(50,12);
-  display.println(curValue[mode]);
+  if ( (mode == 1) || (mode == 2) ){ //AFR should show the decimal (others could be added to this list)
+    display.println(curValue[mode]);
+  }
+  else { //everything else should print an int value
+    display.println((int)curValue[mode]);
+  }
   display.display();
   previousReading[mode] = curValue[mode];  
   return;
@@ -560,9 +566,9 @@ void getResponse(void){
   rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean" buffer
 }
 
-  long int getOBDIIvalue(String whichSensor){
+  float getOBDIIvalue(String whichSensor){
     //Serial.flush();
-    long int value = 0;
+    float value = 0;
     if (whichSensor.indexOf("obdspeedkph") >= 0){
       Serial.println("010D"); //mode 1 0D PID
       //getResponse();  //command echoed
@@ -603,7 +609,7 @@ void getResponse(void){
   if (whichSensor.indexOf("obdafr") >= 0){
     Serial.println("0134"); //afr reading (readings aren't great)
     getResponse();
-    value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/32768*14.7;  //(A*256+B)/32768*14.7
+    value = ((float)(strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/32768*14.7;  //(A*256+B)/32768*14.7
   }
   if (whichSensor.indexOf("obdiat") >= 0){
    Serial.println("O1OF");
@@ -619,7 +625,7 @@ void getResponse(void){
    Serial.println("0142");
    //Serial.println("getting volts");
    getResponse();
-   value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
+   value = ((float)(strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
    //Serial.println("volts is:");
    //Serial.println(value);
  }
