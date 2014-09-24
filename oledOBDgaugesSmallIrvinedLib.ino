@@ -2,26 +2,15 @@
 //set up to use the SPI 128x32 OLED display from adafruit
 
 //TODO: 
-//fix PIDs or delete them (coolant/IAT)   
-//  TRY other getResponse 
-//  TRY getting coolant at beginning of sketch
-//  TRY initializing OBD II before troublesome modes (coolant)...but display icon before init of OBD II
+//write a function that periodically scans all monitored values
 //test peak recall (fix...isn't really working...wrong voltage range??)
 //test warning function (set one low and test that way)
 
 //hardware TODO:
-//take protective strip off
 //test tinting plastic to appear red/amber
 //desoldier buttons and wire up
 //desoldier led backlight
-//wire up power
-
-//Trying/tried with ELM327
-//Very first try this again
-////FORGOT TO DO THE ATZ init and in testing this screwed stuff up...try this next time
-//tried the sendCommand method to init the
-///-had to make this method public in the class to get to it (is that an arduino limitiation)
-///-didn't really work...froze up
+//wire up power to come from OBD II
 
 #include <SPI.h>
 #include <Wire.h>
@@ -38,36 +27,26 @@
 #define OLED_CS    12
 #define OLED_RESET 13
 
-/* Uncomment this block to use hardware SPI
-#define OLED_DC     6
-#define OLED_CS     7
-#define OLED_RESET  8
-Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
-*/
-
 Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
-//This is a character buffer that will store the data from the serial port
-char rxData[115];
-char rxIndex=0;
 int buttonV;
 
 Elm327 Elm;
-byte status;
-int temperature;
+byte Status;
 
-//String modeList[] = {"obdbrzoiltempf", "obdafr", "obdvolts"};
-String curMode = "obdbrzoiltempf";
-int warnLevels[] = {212, 220, 15, 220, 300};
-int warnSign[] = {1,1,1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
-float peaks[] = {0,0,0,0,0};
-float curValue[] = {0,0,0,0,0};
-float previousReading[] = {0,0,0,0,0};
+int warnLevels[] = {
+  212, 220, 15, 220, 300};
+int warnSign[] = {
+  1,1,1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
+float peaks[] = {
+  0,0,0,0,0};
+float curValue[] = {
+  0,0,0,0,0};
+float previousReading[] = {
+  0,0,0,0,0};
 int mode = 0;
 int modes = 4;  //0 is the first of the array
 
-
-       //store other bmps here:
 static const unsigned char PROGMEM robothead [] = {
   0b00000000, 0b00111100, 0b00000000, 0b00000000, //           ####           
   0b00000000, 0b01111110, 0b00000000, 0b00000000, //          ######          
@@ -174,7 +153,7 @@ static const unsigned char PROGMEM o2 [] = {
 
 
 static const unsigned char PROGMEM oil [] = {
-0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
+  0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
   0b00000000, 0b00000000, 0b00000000, 0b00000000, //                                 
@@ -279,130 +258,123 @@ static const unsigned char PROGMEM intake [] = {
 };
 
 void setup() {
- pinMode(A0, INPUT_PULLUP);
- //3 buttons connected as such: http://tronixstuff.com/2011/01/11/tutorial-using-analog-input-for-multiple-buttons/
- //use 15 Kohm resistors
- //no buttons is 1010
- //button nearest gnd is 300
- //middle button is 454
- //last button is 555
- Serial.begin(9600);
- display.begin(SSD1306_SWITCHCAPVCC);
- display.display();
- display.clearDisplay();
-
- //show flash screen
- display.drawBitmap(0, 0, robothead, 32, 32, 1);
- display.display();
-
- display.setCursor(36,0);
- display.setTextSize(2);
- display.setTextColor(WHITE);
- display.println("Not A");
- display.setCursor(36,15);
- display.println("Clock");
- display.display();
-
- //shifty eyes
-/* for (int i; i < 8; i++){
-   display.fillRect(8, 22, 2, 2, WHITE);
-   display.fillRect(18, 22, 2, 2, WHITE);
-   display.display();
-   delay(500);
-   display.fillRect(8, 22, 2, 2, BLACK);
-   display.fillRect(18, 22, 2, 2, BLACK); 
-   display.display();
-   display.fillRect(4, 22, 2, 2, WHITE);
-   display.fillRect(14, 22, 2, 2, WHITE);
-   display.display();
-   delay(500);
-   display.fillRect(4, 22, 2, 2, BLACK);
-   display.fillRect(14, 22, 2, 2, BLACK); 
-   display.display();
- }
-*/
-  //temporary stuff to test button setup
-/*  
+  pinMode(A0, INPUT_PULLUP);
+  Status=Elm.begin();
+  //3 buttons connected as such: http://tronixstuff.com/2011/01/11/tutorial-using-analog-input-for-multiple-buttons/
+  //use 15 Kohm resistors
+  //no buttons is 1010
+  //button nearest gnd is 300
+  //middle button is 454
+  //last button is 555
+  //Serial.begin(9600);
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.display();
   display.clearDisplay();
   display.display();
-  int tempVal;
-  while(true){
-    tempVal = analogRead(0);
-    display.setCursor(36,0);
-    display.setTextSize(2);
-    display.setTextColor(WHITE);
-    display.println(tempVal);
-    display.display();
-    delay(100);
-    display.setCursor(36,0);
-    display.setTextSize(2);
-    display.setTextColor(BLACK);
-    display.println(tempVal);
-    display.display();
-  } 
-*/
+
+  //show flash screen
+  display.drawBitmap(0, 0, robothead, 32, 32, 1);
+  display.display();
+
+  display.setCursor(36,0);
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.println("Not A");
+  display.setCursor(36,15);
+  display.println("Clock");
+  display.display();
+
+  //temporary stuff to test button setup
+  /*
+ display.clearDisplay();
+   display.display();
+   int tempVal;
+   while(true){
+   tempVal = analogRead(0);
+   display.setCursor(36,0);
+   display.setTextSize(2);
+   display.setTextColor(WHITE);
+   display.println(tempVal);
+   display.display();
+   delay(100);
+   display.setCursor(36,0);
+   display.setTextSize(2);
+   display.setTextColor(BLACK);
+   display.println(tempVal);
+   display.display();
+   //no button 1013-1017
+   //a button 15 (no resistor...just wire resistance)
+   //b button 302
+   //c button 457
+   //d button 556
+   } */
+
   //end temp stuff for testing buttons
 
- //set up OBD II stuffs
-   display.fillRect(8, 21, 2, 2, WHITE);
-   display.fillRect(18, 21, 2, 2, WHITE);
-   display.display();
- Serial.println("ATZ");
- getResponse();
- //char data[20];
- //status=Elm.begin();
- delay(1000);
-   display.fillRect(8, 21, 2, 2, BLACK);
-   display.fillRect(18, 21, 2, 2, BLACK); 
-   display.display();
-   display.fillRect(4, 21, 2, 2, WHITE);
-   display.fillRect(14, 21, 2, 2, WHITE);
-   display.display();
-///Serial.println("ATDP");
- ///getResponse();
- delay(1000);
-   display.fillRect(8, 21, 2, 2, WHITE);
-   display.fillRect(18, 21, 2, 2, WHITE);
-   display.display();
- Serial.println("ATE0");
- getResponse();
- delay(1000);
-   display.fillRect(8, 22, 2, 2, BLACK);
-   display.fillRect(18, 22, 2, 2, BLACK); 
-   display.display();
-   display.fillRect(4, 22, 2, 2, WHITE);
-   display.fillRect(14, 22, 2, 2, WHITE);
-   display.display();
-   //Elm.runCommand("AT SH 7E0", data, 20);
- Serial.println("AT SH 7E0");  
- getResponse();
- delay(1000);
-//block to test out the oil temp reading
- /******
- for (int g=0;g<=3;g++){
- Serial.println("2101");
- getResponse();
- Serial.flush();
- display.clearDisplay();
- display.display();
- display.setCursor(0,0);
- display.println(((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32);
- display.display();
- delay(1000);
-}
- */
+  //set up OBD II stuffs
+  display.fillRect(8, 21, 2, 2, WHITE);
+  display.fillRect(18, 21, 2, 2, WHITE);
+  display.display();
+  delay(1000);
+  display.fillRect(8, 21, 2, 2, BLACK);
+  display.fillRect(18, 21, 2, 2, BLACK); 
+  display.display();
+  display.fillRect(4, 21, 2, 2, WHITE);
+  display.fillRect(14, 21, 2, 2, WHITE);
+  display.display();
+  delay(1000);
+  display.fillRect(8, 21, 2, 2, WHITE);
+  display.fillRect(18, 21, 2, 2, WHITE);
+  display.display();
+  delay(1000);
+  display.fillRect(8, 22, 2, 2, BLACK);
+  display.fillRect(18, 22, 2, 2, BLACK); 
+  display.display();
+  display.fillRect(4, 22, 2, 2, WHITE);
+  display.fillRect(14, 22, 2, 2, WHITE);
+  display.display();
+  delay(500);
 
- //put first mode icon and unit here
+  /*
+  //block to test oil temp with Irvined ELM327 lib
+   display.clearDisplay();
+   display.setTextSize(1);
+   display.display();
+   float value=0;
+   float previousValue=0;
+   byte Status;
+   byte StatusOld;
+   while(true){
+   char data[130];
+   Status = Elm.runCommand("2101",data,130);
+   value = ((float)strtol(&data[109],0,16) - 40) * 1.8 + 32;
+   display.setCursor(10,10);
+   display.setTextColor(BLACK);
+   display.println(previousValue);
+   display.setCursor(10,20);
+   display.println(data[109]);
+   display.display();
+   display.setCursor(10,10);
+   display.setTextColor(WHITE);
+   display.println(value);
+   display.setCursor(10,20);
+   display.println(data[109]);
+   display.display();
+   delay(100);
+   previousValue = value;
+   StatusOld = Status;
+   }
+   */
+
+  //put first mode icon and unit here
   display.clearDisplay();
   display.drawBitmap(0, 0, oil, 32, 32, 1);
-  display.setCursor(110,11);
-  //display.println("F");
   display.display();
 }
 
 void loop() {
   buttonV = analogRead(A0);
-  while ( (analogRead(A0) <= 430) || (analogRead(A0) >= 490) ){ //not mode button
+  while ( (analogRead(A0) <= 430) || (analogRead(A0) >= 490) ){ //not mode button (not between 430 and 490)
     buttonV = analogRead(A0);
     if ( (buttonV <= 500) && (buttonV >= 600) ){ //hold down the peaks button to show the peaks of this mode (545)
       while ( (buttonV <= 500) && (buttonV >= 600) ){ //debounce
@@ -448,7 +420,7 @@ void loop() {
     //only print if it changes to avoid flickering
     getVal();
     if ( abs(curValue[mode]-previousReading[mode]) > 0 ){
-     updateVal();
+      updateVal();
     }
     //delay(100);
     //check for warning values here (for this mode only)
@@ -460,56 +432,38 @@ void loop() {
   while ( (analogRead(A0) >= 430) && (analogRead(A0) <= 490) ){ //mode button
   }
   if (mode == modes){
-      mode = 0;
+    mode = 0;
   }
   else {
     mode++;
   }
-    //upon switching modes blank screen and display that mode's icon
-    //also print the unit of measurement if used
-    //but first reset the OBDII stuff just in case (might not be necessary)
-    /*Serial.println("ATZ");
-    getResponse();
-    delay(500);
-    Serial.println("ATE0");
-    getResponse();
-    delay(500);
-    Serial.println("AT SH 7E0");  
-    getResponse();
-    delay(500);*/
-    display.clearDisplay();
-    display.setTextSize(3);
-    display.setTextColor(WHITE);
-    if (mode == 0){//oil temp
-      display.drawBitmap(0, 0, oil, 32, 32, 1);
-      display.setCursor(110,11);
-      //display.println("F"); 
-      display.display();
-    }
-    if (mode == 1){//AFR
-      display.drawBitmap(0, 0, o2, 32, 32, 1);
-      display.display();
-    }
-    if (mode == 2){//Volts
-      display.drawBitmap(0, 0, batt, 32, 32, 1);
-      //display.setCursor(110,11);
-      //display.println("V"); 
-      display.display();
-    }
-    if (mode == 3){//Coolant
-      display.drawBitmap(0, 0, coolant, 32, 32, 1);
-      display.setCursor(110,11);
-      //display.println("F"); 
-      display.display();
-    }
-    if (mode == 4){
-      display.drawBitmap(0, 0, intake, 32, 32, 1);
-      display.setCursor(110,11);
-      //display.println("F"); 
-      display.display();
-    }
-    getVal();
-    updateVal(); //if you don't update here and the value hasn't changed you get blank value
+  //upon switching modes blank screen and display that mode's icon
+  //also print the unit of measurement if used
+  display.clearDisplay();
+  display.setTextSize(3);
+  display.setTextColor(WHITE);
+  if (mode == 0){//oil temp
+    display.drawBitmap(0, 0, oil, 32, 32, 1);
+    display.display();
+  }
+  if (mode == 1){//AFR
+    display.drawBitmap(0, 0, o2, 32, 32, 1);
+    display.display();
+  }
+  if (mode == 2){//Volts
+    display.drawBitmap(0, 0, batt, 32, 32, 1);
+    display.display();
+  }
+  if (mode == 3){//Coolant
+    display.drawBitmap(0, 0, coolant, 32, 32, 1);
+    display.display();
+  }
+  if (mode == 4){
+    display.drawBitmap(0, 0, intake, 32, 32, 1);
+    display.display();
+  }
+  getVal();
+  updateVal(); //if you don't update here and the value hasn't changed you get blank value
 }
 
 void warn(){
@@ -524,7 +478,7 @@ void warn(){
 
 void getVal(){
   if (mode == 0){
-   curValue[mode] = getOBDIIvalue("obdbrzoiltempf");//modeList[mode]);
+    curValue[mode] = getOBDIIvalue("obdbrzoiltempf");//modeList[mode]);
   }
   else if (mode == 1){
     curValue[mode] = getOBDIIvalue("obdafr");
@@ -548,7 +502,12 @@ void updateVal(){
   //draw old value
   display.setTextColor(BLACK);
   display.setCursor(50,12);
-  display.println(previousReading[mode]);
+  if ( (mode == 1) || (mode == 2) ){ //AFR should show the decimal (others could be added to this list)
+    display.println(previousReading[mode]);
+  }
+  else { //everything else should print an int value
+    display.println((int)previousReading[mode]);
+  }
   display.display();
   //draw new value
   display.setTextColor(WHITE);
@@ -560,170 +519,38 @@ void updateVal(){
     display.println((int)curValue[mode]);
   }
   display.display();
-  previousReading[mode] = curValue[mode];  
+  previousReading[mode] = curValue[mode]; 
+  //delay(100); 
   return;
 } 
 
-//from: https://forum.sparkfun.com/viewtopic.php?f=14&t=38253
-void getResponse(void){
-  char c;
-  //int start=millis();
-  //If nothing is currently available do nothing and break after 3 seconds
-  //while(Serial.available()==0){if(millis()-start>3000){break;}}
-  do {
-    if (Serial.available() > 0)
-    {
-     c = Serial.read();
-     if ((c != '>') && (c != '\r') && (c != '\n')) //Keep these out of our buffer
-     {
-      rxData[rxIndex++] = c; //Add whatever we receive to the buffer
-    }
-  }
-} 
-  while (c != '>'); //The ELM327 ends its response with this char so when we get it we exit out.
-  rxData[rxIndex++] = '\0';  //Converts the array into a string
-  //Serial.print("rxData: ");
-  //Serial.println(rxData);
-  rxIndex = 0; //Set this to 0 so next time we call the read we get a "clean" buffer
-}
-
-void getResponse2(void){
-  char obdIn=0;
-  int i=0;
-  //int start=millis();
-  //If nothing is currently available do nothing and break after 3 seconds
-  //while(Serial.available()==0){if(millis()-start>3000){break;}}
-  while(Serial.available()){
-    //check to see if end of line/message
-    if (Serial.peek()=='\r'){
-      obdIn=Serial.read();
-      rxData[i]='\0';
-      Serial.println(rxData);
-      i=0;
-    }
-    // The prompt is sometimes the only thing recieved so this needs to be taken care of
-    else if(Serial.peek()=='>'){
-      obdIn=Serial.read();
-      //Serial.write(obdIn);
-    }
-    // Add next character to string
-    else{
-      obdIn=Serial.read();
-      rxData[i++]=obdIn;
-    }
-  }
-  //Serial.print("rxData(in getResponse): ");
-  //Serial.println(rxData);
-  rxIndex=0;
-}
-
-  float getOBDIIvalue(String whichSensor){
-    //Serial.flush();
-    float value = 0;
-    if (whichSensor.indexOf("obdspeedkph") >= 0){
-      Serial.println("010D"); //mode 1 0D PID
-      //getResponse();  //command echoed
-      getResponse();  //value
-      value = strtol(&rxData[6],0,16) ; //convert the string to integer
-    }
-    if (whichSensor.indexOf("obdspeedmph") >= 0){
-      Serial.println("010D"); //mode 1 0D PID
-      getResponse();  //value
-      value = strtol(&rxData[6],0,16)/1.6 ; //convert the string to integer
-    }  
-    if (whichSensor.indexOf("obdrpms") >= 0){
-      Serial.println("010C"); //mode 1 0C PID (rpm)
-      //Serial.println("getting rpm");
-      getResponse();  //value
-      value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/4; //aka ((A*256)+B)/4 
-      //Serial.println("rpm =");
-      //Serial.println(value);
-    }
-    if (whichSensor.indexOf("obdcoolantc") >=0){
-     //Serial.println("O1O5");
-     //getResponse();
-     //value = (strtol(&rxData[6],0,16)-40); //aka A-40
-     Elm.coolantTemperature(value);
-   }
-   if (whichSensor.indexOf("obdcoolantf") >=0){
-    //Serial.println("coolantf");
-    //Serial.println("O1O5"); //gives raw data of "?"
-    //getResponse();
-    //value = ((strtol(&rxData[6],0,16))-40)*1.8+32; //aka A-40
-    //Serial.print("value of coolantf ");
-    //Serial.print(value);
+float getOBDIIvalue(String whichSensor){
+  //Serial.flush();
+  float value = 0;
+  char data[130];
+  if (whichSensor.indexOf("obdcoolantf") >=0){
     Elm.coolantTemperature(value);
-    value = value * 1.8 + 32;
+    value=value*1.8+32;
   }
-  if (whichSensor.indexOf("obdboost") >= 0){
-    Serial.println("0265"); //intake manifold abs pressure
-    getResponse();
-    value = (strtol(&rxData[6],0,16)); //aka A
-  }  
   if (whichSensor.indexOf("obdafr") >= 0){
-    Serial.println("0134"); //afr reading (readings aren't great)
-    getResponse();
-    value = ((float)(strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/32768*14.7;  //(A*256+B)/32768*14.7
+    Status = Elm.runCommand("0134",data,20);
+    value = ((float)(strtol(&data[6],0,16)*256)+strtol(&data[9],0,16))/32768*14.7;  //(A*256+B)/32768*14.7
   }
-  if (whichSensor.indexOf("obdiat") >= 0){
-   //Serial.println("O1OF");
-   //getResponse();
-   //value = (strtol(&rxData[6],0,16)-40); //aka A-40
-   Elm.intakeAirTemperature(value);
- }
- if (whichSensor.indexOf("obdmaf") >= 0){
-   Serial.println("0110");
-   getResponse();
-   value = ((strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/100; //aka ((A*256)+B)/100
- }
- if (whichSensor.indexOf("obdvolts") >= 0){
-   //Serial.println("0142");
-   ////Serial.println("getting volts");
-   //getResponse();
-   //value = ((float)(strtol(&rxData[6],0,16)*256)+strtol(&rxData[9],0,16))/1000; //aka ((A*256)+B)/100
-   ////Serial.println("volts is:");
-   ////Serial.println(value);
-   Elm.getVoltage(value);
- }
- if (whichSensor.indexOf("obdoiltempc") >= 0){
-   Serial.println("015C");
-   getResponse();
-   value = strtol(&rxData[6],0,16)-40; //aka (A-40)
- }
- if (whichSensor.indexOf("obdoiltempf") >= 0){
-   Serial.println("015C");
-   getResponse();
-   value = (strtol(&rxData[6],0,16)-40)*1.8+32; //aka (A-40) *1.8
- }
+  if (whichSensor.indexOf("obdiat") >= 0){ //USED
+    Elm.intakeAirTemperature(value);
+    value=value*1.8+32;
+  }
 
- //nonstandard/experiemental PIDs
- if (whichSensor.indexOf("obdbrzoiltempc") >= 0){
-   //Serial.println("AT SH 7E0");
-   //Serial1.flush();
-   Serial.println("2101");  
-   getResponse();  
-   value = ((float)strtol(&rxData[109],0,16) - 40); //29th byte - 40 (?)
-   //Serial1.println("AT D");
-   //Serial1.println("AT E0");  
-   //delay(40);
-   //Serial1.println("ATSP6");
- }
- if (whichSensor.indexOf("obdbrzoiltempf") >= 0){ //works
-  //Serial.println("AT SH 7E0"); //TRY
-  //Serial1.flush();
-  //getResponse();
-  Serial.println("2101");
-  getResponse();  //try getResponse2()
-  //Serial.println("brz oil temp");
-  //delay(40);
-  //Serial.println(&rxData[109]);
-  //Serial.println((float)strtol(&rxData[109],0,16)); 
-  value = ((float)strtol(&rxData[109],0,16) - 40) * 1.8 + 32;
-  //Serial.println(value); //TRY
-}
+  if (whichSensor.indexOf("obdvolts") >= 0){ //USED
+    Elm.getVoltage(value);
+  }
 
-  delay(100);  
-  Serial.flush();
-  memset(rxData,0,sizeof(rxData)); //blank the array
+  if (whichSensor.indexOf("obdbrzoiltempf") >= 0){ //works and USED
+    Status = Elm.runCommand("2101",data,130);
+    value = ((float)strtol(&data[109],0,16) - 40) * 1.8 + 32;
+  }
+
+  //delay(100);  
   return value; 
 }
+
