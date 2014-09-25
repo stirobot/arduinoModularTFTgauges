@@ -35,7 +35,7 @@ Elm327 Elm;
 byte Status;
 
 int warnLevels[] = {
-  212, 220, 15, 220, 300};
+  100, 220, 15, 220, 300};
 int warnSign[] = {
   1,1,1,1,1};  //1 for high, 0 for low (in cases like oil pressure)
 float peaks[] = {
@@ -315,7 +315,7 @@ void setup() {
   display.fillRect(8, 21, 2, 2, WHITE);
   display.fillRect(18, 21, 2, 2, WHITE);
   display.display();
-  delay(1000);
+  getOBDIIvalue("obdbrzoiltempf"); //do the first reading here because it takes a sec or two  display.fillRect(8, 21, 2, 2, BLACK);
   display.fillRect(8, 21, 2, 2, BLACK);
   display.fillRect(18, 21, 2, 2, BLACK); 
   display.display();
@@ -323,48 +323,20 @@ void setup() {
   display.fillRect(14, 21, 2, 2, WHITE);
   display.display();
   delay(1000);
-  display.fillRect(8, 21, 2, 2, WHITE);
-  display.fillRect(18, 21, 2, 2, WHITE);
+  display.fillRect(4, 21, 2, 2, BLACK);
+  display.fillRect(14, 21, 2, 2, BLACK);
+  display.display();
+  display.fillRect(8, 22, 2, 2, WHITE);
+  display.fillRect(18, 22, 2, 2, WHITE); 
   display.display();
   delay(1000);
   display.fillRect(8, 22, 2, 2, BLACK);
-  display.fillRect(18, 22, 2, 2, BLACK); 
+  display.fillRect(18, 22, 2, 2, BLACK);
   display.display();
-  display.fillRect(4, 22, 2, 2, WHITE);
-  display.fillRect(14, 22, 2, 2, WHITE);
+  display.fillRect(4, 21, 2, 2, WHITE);
+  display.fillRect(14, 21, 2, 2, WHITE);
   display.display();
   delay(500);
-
-  /*
-  //block to test oil temp with Irvined ELM327 lib
-   display.clearDisplay();
-   display.setTextSize(1);
-   display.display();
-   float value=0;
-   float previousValue=0;
-   byte Status;
-   byte StatusOld;
-   while(true){
-   char data[130];
-   Status = Elm.runCommand("2101",data,130);
-   value = ((float)strtol(&data[109],0,16) - 40) * 1.8 + 32;
-   display.setCursor(10,10);
-   display.setTextColor(BLACK);
-   display.println(previousValue);
-   display.setCursor(10,20);
-   display.println(data[109]);
-   display.display();
-   display.setCursor(10,10);
-   display.setTextColor(WHITE);
-   display.println(value);
-   display.setCursor(10,20);
-   display.println(data[109]);
-   display.display();
-   delay(100);
-   previousValue = value;
-   StatusOld = Status;
-   }
-   */
 
   //put first mode icon and unit here
   display.clearDisplay();
@@ -376,8 +348,8 @@ void loop() {
   buttonV = analogRead(A0);
   while ( (analogRead(A0) <= 430) || (analogRead(A0) >= 490) ){ //not mode button (not between 430 and 490)
     buttonV = analogRead(A0);
-    if ( (buttonV <= 500) && (buttonV >= 600) ){ //hold down the peaks button to show the peaks of this mode (545)
-      while ( (buttonV <= 500) && (buttonV >= 600) ){ //debounce
+    if ( (buttonV >= 500) && (buttonV <= 600) ){ //hold down the peaks button to show the peaks of this mode (555ish)
+      while ( (buttonV >= 500) && (buttonV <= 600) ){ //debounce
         //display peaks for this "mode" here
         display.fillRect(48,0,80,32,BLACK); //black area between icon and unit
         display.setTextSize(3);
@@ -395,8 +367,8 @@ void loop() {
       buttonV = analogRead(A0);
     }
 
-    //hold reset button here to reset peak of specific mode (300)
-    if ( (buttonV <= 325) && (buttonV >= 285) ){ //hold down the reset button to reseet the peaks of this mode (3??)
+    //hold reset button here to reset peak of specific mode
+    if ( (buttonV <= 325) && (buttonV >= 285) ){ //hold down the reset button to reseet the peaks of this mode (300ish)
       while ( (buttonV <= 325) && (buttonV >= 285) ){ //debounce
         display.fillRect(48,0,80,32,BLACK); //black area between icon and unit
         display.setTextSize(3);
@@ -416,16 +388,20 @@ void loop() {
       buttonV = analogRead(A0);
     }
 
-    //display the value here...no conditionals...just print the value (for now??)
+    //display the value here...no conditionals...just print the value
     //only print if it changes to avoid flickering
     getVal();
     if ( abs(curValue[mode]-previousReading[mode]) > 0 ){
       updateVal();
     }
-    //delay(100);
+
+    //TODO: fix this...not working
     //check for warning values here (for this mode only)
-    if ( ( (curValue[mode] > warnLevels[mode]) && (warnSign[mode] == 1) ) || ( (curValue[mode] < warnLevels[mode]) && (warnSign[mode] == 0) ) ){
+    //if ( ( (curValue[mode] > warnLevels[mode]) && (warnSign[mode] == 1) ) || ( (curValue[mode] < warnLevels[mode]) && (warnSign[mode] == 0) ) ){
+    if (curValue[mode] >= warnLevels[mode]){
       //do a warning thing here
+      display.println("WARN");
+      display.display();
       warn();
     }
   }
@@ -468,10 +444,10 @@ void loop() {
 
 void warn(){
   //a border around the screen flashes as a warning
-  for (int a=1;a<=3;a++){
-    display.drawRect(0,0,128,32,WHITE);
+  for (int a=1;a>=3;a++){
+    display.drawRect(0,0,127,31,WHITE);
     delay(100);
-    display.drawRect(0,0,128,32,BLACK);
+    display.drawRect(0,0,127,31,BLACK);
   }
   return;
 } 
