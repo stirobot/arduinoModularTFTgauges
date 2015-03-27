@@ -1,0 +1,137 @@
+splash:autox.bmp 
+
+#all of the config items for a page have to be kept in order or defaults might be use (at best)
+
+#colorscheme use these colors -> yellow, red, green, black, blue, white, magenta
+background:black
+outline:red
+fill:red
+textdefault:blue
+alert:white
+severe:red
+
+#pin config
+#sensorName:pin
+#legal sensor names:
+#	oiltemp
+#	oilpressure
+#	boostpressure
+#	temperature
+#	accelx
+#	accely
+#	obdoiltempf
+# 	obdoiltempc
+#	obdbrzoiltempc
+#	obdbrzoiltempf
+#	obdspeedkph
+#	obdspeedmph
+#	obdvolts
+#	obdcoolant
+#	obdafr //not yet
+#	obdmaf //in grams/sec
+#	obdiat //in deg C
+#	fake
+#obd sensors don't have pins associated with them
+
+#page (aka mode) config
+#as many pages as you want...the sketch will flip through until EOF and start again
+#each sensor is configured per page
+#obd sensors don't have pin assignments after them
+#page types:
+#	twobar - two horizontal bar graphs with text
+#	onebar - one horizontal bar graph with text
+#	cross - cross chart for accelerometer
+#	round - 1 round gauge for one sensor
+#sensor*text can be about 8 chars long on the one sensor pages...a little longer on the others (due to font size)
+#There is a "fake" sensor...give it a pin number that is the max value you want...allows for easy testing.
+
+#a page called logging will log the given parameters and display the first 4 as plain text
+#because of the way logging closes and opens a file...make sure logging is always the last page...
+#pages after logging will be skipped
+pagetype:twobar
+sensor1:fake
+sensor2:fake
+sensor1pin:300
+sensor2pin:100
+sensor1text:Oil Temp
+sensor2text:Water
+sensor1max:300
+sensor2max:100
+sensor1alert:190
+sensor2alert:0
+sensor1units:F
+sensor2units:F
+
+pagetype:accel
+sensor1:accelx
+sensor1pin:8
+sensor2:accely
+sensor2pin:9
+
+pagetype:round
+sensor1:fake
+sensor1pin:300
+sensor1text:Oil T
+sensor1max:300
+sensor1alert:190
+sensor1units:F
+
+pagetype:round
+sensor1:fake
+sensor1pin:250
+sensor1text:Oil Pressure
+sensor1max:250
+sensor1alert:200
+sensor1units:Psi
+
+pagetype:onebar
+sensor1:fake
+sensor1pin:300
+sensor1text:Oil Temp
+sensor1max:300
+sensor1alert:250
+sensor1units:F
+
+pagetype:onebar
+sensor1:fake
+sensor1pin:21
+sensor1text:Boost
+sensor1max:21
+sensor1alert:19
+sensor1units:Psi
+
+pagetype:round
+sensor1:fake
+sensor1pin:21
+sensor1text:Boost
+sensor1max:21
+sensor1alert:18
+sensor1units:Psi
+
+allgauges:
+pagetype:logging
+monitorinterval:40
+sensor1:fake
+sensor2:fake
+sensor3:fake
+sensor4:fake
+sensor5:fake
+sensor6:fake
+sensor1pin:300
+sensor2pin:200
+sensor3pin:250
+sensor4pin:100
+sensor5pin:20
+sensor6pin:350
+sensor1alert:200
+sensor2alert:150
+sensor3alert:200
+sensor4alert:90
+sensor5alert:18
+sensor6alert:300
+sensor1severe:255
+sensor2severe:175
+sensor3severe:240
+sensor4severe:99
+sensor5severe:20
+sensor6severe:340
